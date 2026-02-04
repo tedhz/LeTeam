@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "372219281715",
+    "project_id": "leteam-ed3c1",
+    "storage_bucket": "leteam-ed3c1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:372219281715:android:5b28a100a999c4d7b23e46",
+        "android_client_info": {
+          "package_name": "com.leteam.locked"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCtPDTrO2jyMmKXx37vE9XyFQ7bsw29Lc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -63,4 +63,6 @@ dependencies {
     implementation(libs.firebase.storage.ktx)
     implementation(libs.firebase.messaging.ktx)
 
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
 }

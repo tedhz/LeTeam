@@ -3,10 +3,7 @@ package com.leteam.locked.auth
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 
-class AuthRepo {
-
-    private val auth: FirebaseAuth = FirebaseAuth.getInstance()
-
+class AuthRepo(private val auth: FirebaseAuth = FirebaseAuth.getInstance()) {
     fun signUp(
         email: String,
         password: String,

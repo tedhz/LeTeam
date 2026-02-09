@@ -6,7 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import com.leteam.locked.auth.LoginScreen
+import com.leteam.locked.auth.SignInScreen
+import com.leteam.locked.auth.SignUpScreen
 import com.leteam.locked.ui.theme.LockedTheme
 
 class MainActivity : ComponentActivity() {
@@ -16,20 +17,21 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-
             LockedTheme {
-
                 var loggedIn by remember { mutableStateOf(false) }
+                var showSignUp by remember { mutableStateOf(false) }
 
                 if (loggedIn) {
                     Text("AHAHAHAHAHAHA BANG")
-
+                } else if (showSignUp) {
+                    SignUpScreen(
+                        onLoggedIn = { loggedIn = true },
+                        onNavigateToSignIn = { showSignUp = false }
+                    )
                 } else {
-
-                    LoginScreen(
-                        onLoggedIn = {
-                            loggedIn = true
-                        }
+                    SignInScreen(
+                        onLoggedIn = { loggedIn = true },
+                        onNavigateToSignUp = { showSignUp = true }
                     )
                 }
             }

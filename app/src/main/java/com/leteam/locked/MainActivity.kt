@@ -4,10 +4,10 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import com.leteam.locked.auth.SignInScreen
 import com.leteam.locked.auth.SignUpScreen
+import com.leteam.locked.ui.navigation.MainScreen
 import com.leteam.locked.ui.theme.LockedTheme
 
 class MainActivity : ComponentActivity() {
@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
                 var showSignUp by remember { mutableStateOf(false) }
 
                 if (loggedIn) {
-                    Text("AHAHAHAHAHAHA BANG")
+                    MainScreen()
                 } else if (showSignUp) {
                     SignUpScreen(
                         onLoggedIn = { loggedIn = true },

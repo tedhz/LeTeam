@@ -1,8 +1,11 @@
 package com.leteam.locked.ui.screens.camera
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -16,20 +19,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import java.io.File
+import coil.request.ImageRequest
 
 private fun createImageUri(context: Context): Uri {
-    val imagesDir = File(context.filesDir, "images").apply { mkdirs() }
-    val imageFile = File(imagesDir, "photo_${System.currentTimeMillis()}.jpg")
-    imageFile.createNewFile()
-    return FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        imageFile
-    )
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, "photo_${System.currentTimeMillis()}.jpg")
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/LeTeamLocked")
+        }
+    }
+
+    return context.contentResolver.insert(
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        contentValues
+    ) ?: throw IllegalStateException("Failed to create MediaStore entry")
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,47 +50,61 @@ fun CameraScreen(
 
     var launchedOnce by rememberSaveable { mutableStateOf(false) }
     var permissionDenied by rememberSaveable { mutableStateOf(false) }
+    var pendingUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var captureError by rememberSaveable { mutableStateOf<String?>(null) }
 
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
-        if (!success) {
+        if (success) {
+            val uri = pendingUri
+            if (uri != null) {
+                viewModel.setPhotoUri(uri)
+                captureError = null
+            } else {
+                viewModel.setPhotoUri(null)
+                captureError = "Capture succeeded but no URI was available."
+            }
+        } else {
+            pendingUri?.let { context.contentResolver.delete(it, null, null) }
             viewModel.setPhotoUri(null)
         }
+        pendingUri = null
     }
 
     val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
+        permissionDenied = !granted
         if (granted) {
-            permissionDenied = false
-            val uri = createImageUri(context)
-            viewModel.setPhotoUri(uri)
-            takePictureLauncher.launch(uri)
-        } else {
-            permissionDenied = true
+            captureError = null
+            launchCameraFlow(
+                context = context,
+                onUriReady = { uri ->
+                    pendingUri = uri
+                    takePictureLauncher.launch(uri)
+                }
+            )
         }
     }
 
-    fun launchCameraFlow() {
-        val hasPermission = ContextCompat.checkSelfPermission(
-            context,
-            android.Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (hasPermission) {
-            val uri = createImageUri(context)
-            viewModel.setPhotoUri(uri)
-            takePictureLauncher.launch(uri)
-        } else {
-            requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-        }
+    fun retake() {
+        captureError = null
+        launchCameraFlow(
+            context = context,
+            onRequestPermission = { requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA) },
+            onPermissionDenied = { permissionDenied = true },
+            onUriReady = { uri ->
+                pendingUri = uri
+                takePictureLauncher.launch(uri)
+            }
+        )
     }
 
     LaunchedEffect(Unit) {
         if (!launchedOnce) {
             launchedOnce = true
-            launchCameraFlow()
+            retake()
         }
     }
 
@@ -107,7 +127,8 @@ fun CameraScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 OutlinedButton(
-                    onClick = { launchCameraFlow() },
+                    onClick = { retake() },
+                    enabled = !permissionDenied,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Retake")
@@ -137,28 +158,33 @@ fun CameraScreen(
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { launchCameraFlow() }) {
+                    Button(onClick = {
+                        requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                    }) {
                         Text("Try Again")
                     }
                 }
 
                 photoUri == null -> {
-                    Text("Opening camera...", style = MaterialTheme.typography.bodyLarge)
-                    Spacer(Modifier.height(16.dp))
-                    CircularProgressIndicator()
+                    if (captureError != null) {
+                        Text(
+                            text = captureError!!,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    } else {
+                        Text("Opening camera...", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(16.dp))
+                        CircularProgressIndicator()
+                    }
                 }
 
                 else -> {
                     val uri = photoUri!!
 
-                    Text(
-                        text = "Saved: $uri",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Spacer(Modifier.height(12.dp))
 
                     AsyncImage(
-                        model = coil.request.ImageRequest.Builder(context)
+                        model = ImageRequest.Builder(context)
                             .data(uri)
                             .crossfade(true)
                             .memoryCacheKey(uri.toString())
@@ -170,10 +196,33 @@ fun CameraScreen(
                             .aspectRatio(3f / 4f),
                         onError = {
                             android.util.Log.e("CameraScreen", "Coil failed to load: $uri", it.result.throwable)
+                            captureError = it.result.throwable?.toString() ?: "Failed to load image."
                         }
                     )
                 }
             }
+        }
+    }
+}
+
+private fun launchCameraFlow(
+    context: Context,
+    onRequestPermission: (() -> Unit)? = null,
+    onPermissionDenied: (() -> Unit)? = null,
+    onUriReady: (Uri) -> Unit
+) {
+    val hasPermission = ContextCompat.checkSelfPermission(
+        context,
+        android.Manifest.permission.CAMERA
+    ) == PackageManager.PERMISSION_GRANTED
+
+    if (hasPermission) {
+        onUriReady(createImageUri(context))
+    } else {
+        if (onRequestPermission != null) {
+            onRequestPermission()
+        } else {
+            onPermissionDenied?.invoke()
         }
     }
 }

@@ -23,6 +23,8 @@ import androidx.navigation.compose.rememberNavController
 import com.leteam.locked.ui.screens.home.HomeScreen
 import com.leteam.locked.ui.screens.profile.ProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
+import com.leteam.locked.ui.screens.camera.CameraScreen
+
 
 private data class NavItem(
     val route: String,
@@ -69,9 +71,20 @@ fun MainScreen() {
             startDestination = Routes.HOME,
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable(Routes.HOME) { HomeScreen() }
+            composable(Routes.HOME) {
+                HomeScreen(
+                    onPostClick = { navController.navigate(Routes.CAMERA) }
+                )
+            }
+
             composable(Routes.PROFILE) { ProfileScreen() }
             composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(Routes.CAMERA) {
+                CameraScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
         }
     }
 }

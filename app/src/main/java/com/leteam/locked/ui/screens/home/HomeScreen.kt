@@ -16,18 +16,24 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun HomeScreen(
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    onPostClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Home", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = "Home",
+            style = MaterialTheme.typography.headlineMedium
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Button(onClick = { /* TODO: Handle post action */ }) {
+        Button(
+            onClick = onPostClick
+        ) {
             Text("Post")
         }
     }

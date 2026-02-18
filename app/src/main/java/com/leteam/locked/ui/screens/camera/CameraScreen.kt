@@ -139,7 +139,7 @@ fun CameraScreen(
                     enabled = photoUri != null,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Post")
+                    Text("Next")
                 }
             }
         }

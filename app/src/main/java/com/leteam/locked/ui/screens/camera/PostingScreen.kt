@@ -71,21 +71,14 @@ fun PostingScreen(
             verticalArrangement = Arrangement.Top,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
+            Image(
+                painter = rememberAsyncImagePainter(imageUri), // Coil loads Uri directly
+                contentDescription = "Post Image Preview",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = rememberAsyncImagePainter(imageUri), // Coil loads Uri directly
-                    contentDescription = "Post Image Preview",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
+                    .clip(RoundedCornerShape(12.dp)),
+            )
+
 
             Spacer(modifier = Modifier.height(24.dp))
 

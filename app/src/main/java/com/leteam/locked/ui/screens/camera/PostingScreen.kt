@@ -87,8 +87,8 @@ fun PostingScreen(
                 onValueChange = { caption = it },
                 label = { Text("Write a caption...") },
                 modifier = Modifier.fillMaxWidth(),
-                minLines = 3,
-                maxLines = 5
+                minLines = 1,
+                maxLines = 3,
             )
 
             Spacer(modifier = Modifier.height(24.dp))

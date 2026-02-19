@@ -4,15 +4,15 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.leteam.locked.firebase.FirebaseProvider
-import com.leteam.locked.posts.Post
+import com.leteam.locked.photos.PhotoRepository
 import com.leteam.locked.posts.PostsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Date
 
 class PostingViewModel(
-    private val postsRepository: PostsRepository = PostsRepository(FirebaseProvider.firestore)
+    private val postsRepository: PostsRepository = PostsRepository(FirebaseProvider.firestore),
+    private val photoRepository: PhotoRepository = PhotoRepository(FirebaseProvider.storage)
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<PostingUiState>(PostingUiState.Idle)
@@ -34,15 +34,29 @@ class PostingViewModel(
 
         viewModelScope.launch {
             try {
-                // TODO: Upload imageUri to Blob storage here in the future
+                // upload image to Firebase Storage
+                val photoUrl = photoRepository.uploadPhoto(
+                    type = PhotoRepository.PhotoType.POST_PHOTO,
+                    userId = userId,
+                    imageUri = imageUri,
+                    contentType = "image/jpeg"
+                )
 
+                // create post with the uploaded URL
                 postsRepository.createPost(
                     caption = caption,
                     ownerUserId = userId,
-                    photoUrl = imageUri.toString(),
-                    onResult = {}
+                    photoUrl = photoUrl,
+                    onResult = { result ->
+                        _uiState.value = if (result.isSuccess) {
+                            PostingUiState.Success
+                        } else {
+                            PostingUiState.Error(
+                                result.exceptionOrNull()?.message ?: "Failed to create post"
+                            )
+                        }
+                    }
                 )
-                _uiState.value = PostingUiState.Success
             } catch (e: Exception) {
                 _uiState.value = PostingUiState.Error(e.message ?: "Failed to create post")
             }

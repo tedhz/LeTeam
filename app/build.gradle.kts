@@ -76,6 +76,7 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.kotlinx.coroutines.play.services)
 
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.mockk.android)

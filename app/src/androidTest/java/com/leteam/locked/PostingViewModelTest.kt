@@ -5,6 +5,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.leteam.locked.firebase.FirebaseProvider
+import com.leteam.locked.photos.PhotoRepository
 import com.leteam.locked.posts.PostsRepository
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
@@ -13,6 +14,7 @@ import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
 import io.mockk.mockkObject
+import io.mockk.slot
 import io.mockk.unmockkAll
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,6 +38,9 @@ class PostingViewModelInstrumentedTest {
     lateinit var postsRepository: PostsRepository
 
     @MockK
+    lateinit var photoRepository: PhotoRepository
+
+    @MockK
     lateinit var mockAuth: FirebaseAuth
 
     @MockK
@@ -54,7 +59,7 @@ class PostingViewModelInstrumentedTest {
         mockkObject(FirebaseProvider)
         every { FirebaseProvider.auth } returns mockAuth
 
-        viewModel = PostingViewModel(postsRepository)
+        viewModel = PostingViewModel(postsRepository, photoRepository)
     }
 
     @After
@@ -93,13 +98,34 @@ class PostingViewModelInstrumentedTest {
     @Test
     fun createPost_success_updatesStateToSuccess() = runTest {
         val validUri = Uri.parse("content://com.leteam.provider/my_image.jpg")
+        val photoUrl = "https://firebasestorage.googleapis.com/photo.jpg"
 
         every { mockAuth.currentUser } returns mockUser
         every { mockUser.uid } returns "user_123"
 
+        // Mock photo upload
         coEvery {
-            postsRepository.createPost(any(), any(), any(), any(), any())
-        } returns Unit
+            photoRepository.uploadPhoto(
+                type = PhotoRepository.PhotoType.POST_PHOTO,
+                userId = "user_123",
+                imageUri = validUri,
+                contentType = "image/jpeg"
+            )
+        } returns photoUrl
+
+        // Capture the callback and invoke it with success
+        val callbackSlot = slot<(Result<String>) -> Unit>()
+        every {
+            postsRepository.createPost(
+                ownerUserId = "user_123",
+                caption = "Nice photo",
+                photoUrl = photoUrl,
+                updateDailyPostStatus = any(),
+                onResult = capture(callbackSlot)
+            )
+        } answers {
+            callbackSlot.captured.invoke(Result.success("post_123"))
+        }
 
         viewModel.createPost(validUri, "Nice photo")
 
@@ -107,27 +133,39 @@ class PostingViewModelInstrumentedTest {
 
         val state = viewModel.uiState.value
         assertEquals(PostingUiState.Success, state)
-
-        coVerify {
-            postsRepository.createPost(
-                caption = "Nice photo",
-                ownerUserId = "user_123",
-                photoUrl = validUri.toString(),
-                onResult = any()
-            )
-        }
     }
 
     @Test
     fun createPost_repositoryFailure_updatesStateToError() = runTest {
         val validUri = Uri.parse("file:///sdcard/photo.jpg")
+        val photoUrl = "https://firebasestorage.googleapis.com/photo.jpg"
         every { mockAuth.currentUser } returns mockUser
         every { mockUser.uid } returns "user_123"
 
-        val errorMsg = "Upload failed"
+        // Mock photo upload
         coEvery {
-            postsRepository.createPost(any(), any(), any(), any(), any())
-        } throws RuntimeException(errorMsg)
+            photoRepository.uploadPhoto(
+                type = PhotoRepository.PhotoType.POST_PHOTO,
+                userId = "user_123",
+                imageUri = validUri,
+                contentType = "image/jpeg"
+            )
+        } returns photoUrl
+
+        // Capture the callback and invoke it with failure
+        val errorMsg = "Upload failed"
+        val callbackSlot = slot<(Result<String>) -> Unit>()
+        every {
+            postsRepository.createPost(
+                ownerUserId = "user_123",
+                caption = "Caption",
+                photoUrl = photoUrl,
+                updateDailyPostStatus = any(),
+                onResult = capture(callbackSlot)
+            )
+        } answers {
+            callbackSlot.captured.invoke(Result.failure(RuntimeException(errorMsg)))
+        }
 
         viewModel.createPost(validUri, "Caption")
         advanceUntilIdle()

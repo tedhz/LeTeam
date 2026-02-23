@@ -1,6 +1,8 @@
 package com.leteam.locked.ui.navigation
 
 import android.net.Uri
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -28,6 +30,10 @@ import com.leteam.locked.ui.screens.camera.PostingScreen
 import com.leteam.locked.ui.screens.home.HomeScreen
 import com.leteam.locked.ui.screens.profile.ProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 
 private data class NavItem(
     val route: String,
@@ -35,9 +41,12 @@ private data class NavItem(
     val icon: ImageVector
 )
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+    var hasPosted by remember { mutableStateOf(false) }
+    var lastPostedImageUri by remember { mutableStateOf<Uri?>(null) }
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val showBottomBar = currentDestination?.route in listOf(
@@ -83,7 +92,9 @@ fun MainScreen() {
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
-                    onPostClick = { navController.navigate(Routes.CAMERA) }
+                    onPostClick = { navController.navigate(Routes.CAMERA) },
+                    hasPosted = hasPosted,
+                    lastPostedImageUri = lastPostedImageUri
                 )
             }
 
@@ -108,6 +119,9 @@ fun MainScreen() {
                 PostingScreen(
                     imageUri = imageUri,
                     onPostSuccess = {
+                        hasPosted = true
+                        lastPostedImageUri = imageUri
+
                         navController.navigate(Routes.HOME) {
                             popUpTo(Routes.HOME) { inclusive = true }
                         }

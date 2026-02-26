@@ -160,4 +160,112 @@ class WorkoutRepositoryTest {
         assertEquals(1, resultList!!.size)
         assertEquals(testWorkoutId, resultList!![0].id)
     }
+
+    @Test
+    fun `updateExercise successfully updates document`() {
+        every { mockExercisesCollection.document(any()) } returns mockExerciseDoc
+        every { mockExerciseDoc.update(any<Map<String, Any>>()) } returns mockTaskVoid
+
+        val exerciseToUpdate = Exercise(
+            id = "exercise_123",
+            name = "Incline Dumbbell Press",
+            numberOfSets = 4,
+            repsPerSet = 10,
+            weightAmount = 65.0
+        )
+
+        var resultCaptured: Result<Unit>? = null
+
+        repository.updateExercise(testUserId, testWorkoutId, exerciseToUpdate) {
+            resultCaptured = it
+        }
+
+        assertTrue(resultCaptured!!.isSuccess)
+
+        val expectedPayload = mapOf(
+            "exerciseName" to exerciseToUpdate.name,
+            "numberOfSets" to exerciseToUpdate.numberOfSets,
+            "repsPerSet" to exerciseToUpdate.repsPerSet,
+            "weightAmount" to exerciseToUpdate.weightAmount
+        )
+        verify { mockExerciseDoc.update(expectedPayload) }
+    }
+
+    @Test
+    fun `updateExercise returns failure when update fails`() {
+        every { mockExercisesCollection.document(any()) } returns mockExerciseDoc
+
+        val exception = Exception("Network error")
+        val mockFailingTask: Task<Void> = mockk()
+
+        every { mockExerciseDoc.update(any<Map<String, Any>>()) } returns mockFailingTask
+        every { mockFailingTask.addOnSuccessListener(any()) } returns mockFailingTask
+        every { mockFailingTask.addOnFailureListener(any()) } answers {
+            val listener = firstArg<OnFailureListener>()
+            listener.onFailure(exception)
+            mockFailingTask
+        }
+
+        val exerciseToUpdate = Exercise(
+            id = "exercise_123",
+            name = "Incline Dumbbell Press",
+            numberOfSets = 4,
+            repsPerSet = 10,
+            weightAmount = 65.0
+        )
+
+        var resultCaptured: Result<Unit>? = null
+
+        repository.updateExercise(testUserId, testWorkoutId, exerciseToUpdate) {
+            resultCaptured = it
+        }
+
+        assertTrue(resultCaptured!!.isFailure)
+        assertEquals("Network error", resultCaptured!!.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `deleteExercise successfully deletes document`() {
+        every { mockExercisesCollection.document(any()) } returns mockExerciseDoc
+        every { mockExerciseDoc.delete() } returns mockTaskVoid
+
+        val testExerciseId = "exercise_123"
+        var resultCaptured: Result<Unit>? = null
+
+        repository.deleteExercise(testUserId, testWorkoutId, testExerciseId) {
+            resultCaptured = it
+        }
+
+        assertTrue(resultCaptured!!.isSuccess)
+
+        verify { mockWorkoutsCollection.document(testWorkoutId) }
+        verify { mockExercisesCollection.document(testExerciseId) }
+        verify { mockExerciseDoc.delete() }
+    }
+
+    @Test
+    fun `deleteExercise returns failure when delete fails`() {
+        every { mockExercisesCollection.document(any()) } returns mockExerciseDoc
+
+        val exception = Exception("Permission denied")
+        val mockFailingTask: Task<Void> = mockk()
+
+        every { mockExerciseDoc.delete() } returns mockFailingTask
+        every { mockFailingTask.addOnSuccessListener(any()) } returns mockFailingTask
+        every { mockFailingTask.addOnFailureListener(any()) } answers {
+            val listener = firstArg<OnFailureListener>()
+            listener.onFailure(exception)
+            mockFailingTask
+        }
+
+        val testExerciseId = "exercise_123"
+        var resultCaptured: Result<Unit>? = null
+
+        repository.deleteExercise(testUserId, testWorkoutId, testExerciseId) {
+            resultCaptured = it
+        }
+
+        assertTrue(resultCaptured!!.isFailure)
+        assertEquals("Permission denied", resultCaptured!!.exceptionOrNull()?.message)
+    }
 }

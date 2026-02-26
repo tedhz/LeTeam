@@ -24,6 +24,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.leteam.locked.auth.SignInScreen
 import com.leteam.locked.ui.screens.camera.CameraScreen
 import com.leteam.locked.ui.screens.camera.PostingScreen
 import com.leteam.locked.ui.screens.home.HomeScreen
@@ -39,7 +40,7 @@ private data class NavItem(
 )
 
 @Composable
-fun MainScreen() {
+fun MainScreen(onSignedOut: () -> Unit) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -98,7 +99,11 @@ fun MainScreen() {
             ) }
 
             composable(Routes.PROFILE) { ProfileScreen() }
-            composable(Routes.SETTINGS) { SettingsScreen() }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                    onSignedOut = onSignedOut
+                )
+            }
 
             composable(Routes.CAMERA) {
                 CameraScreen(

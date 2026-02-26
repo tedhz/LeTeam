@@ -58,7 +58,9 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     is AppState.Authenticated -> {
-                        MainScreen()
+                        MainScreen(
+                            onSignedOut = { rootViewModel.checkAuthState() }
+                        )
                     }
                 }
             }

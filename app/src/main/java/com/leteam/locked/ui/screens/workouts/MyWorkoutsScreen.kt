@@ -24,7 +24,8 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyWorkoutsScreen(
-    viewModel: MyWorkoutsViewModel = viewModel()
+    viewModel: MyWorkoutsViewModel = viewModel(),
+    onBackClick: () -> Unit = {}
 ) {
     val workouts by viewModel.workouts.collectAsState()
     val selectedWorkout by viewModel.selectedWorkout.collectAsState()
@@ -36,7 +37,16 @@ fun MyWorkoutsScreen(
 
     if (selectedWorkout == null) {
         Scaffold(
-            topBar = { TopAppBar(title = { Text("My Workouts") }) },
+            topBar = {
+                TopAppBar(
+                    title = { Text("My Workouts") },
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        }
+                    }
+                )
+            },
             floatingActionButton = {
                 FloatingActionButton(onClick = { viewModel.createWorkout() }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Workout")
@@ -123,7 +133,7 @@ fun MyWorkoutsScreen(
 
 @Composable
 fun WorkoutItem(workout: Workout, onClick: () -> Unit) {
-    val df = remember { SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()) }
+    val df = remember { SimpleDateFormat("MMM dd, yyyy 'at' h:mm a", Locale.getDefault()) }
     Card(
         modifier = Modifier
             .fillMaxWidth()

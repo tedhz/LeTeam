@@ -29,6 +29,9 @@ class WorkoutRepositoryTest {
     private val mockQuerySnapshot: QuerySnapshot = mockk()
     private val mockDocSnapshot: QueryDocumentSnapshot = mockk()
 
+    private val mockTaskDoc: Task<DocumentSnapshot> = mockk()
+    private val mockUserDocSnapshot: DocumentSnapshot = mockk()
+
     private lateinit var repository: WorkoutRepository
 
     private val testUserId = "user_123"
@@ -50,7 +53,6 @@ class WorkoutRepositoryTest {
         every { mockExercisesCollection.document() } returns mockExerciseDoc
 
         every { mockFirestore.batch() } returns mockBatch
-
         every { mockBatch.commit() } returns mockTaskVoid
 
         every { mockTaskVoid.addOnSuccessListener(any()) } answers {
@@ -73,9 +75,7 @@ class WorkoutRepositoryTest {
         assertEquals(testWorkoutId, resultCaptured!!.getOrNull())
 
         verify { mockBatch.set(mockWorkoutDoc, any()) }
-
         verify(exactly = 0) { mockBatch.set(mockExerciseDoc, any()) }
-
         verify { mockBatch.commit() }
     }
 
@@ -95,7 +95,6 @@ class WorkoutRepositoryTest {
         assertTrue(resultCaptured!!.isSuccess)
 
         verify { mockBatch.set(mockWorkoutDoc, any()) }
-
         verify(exactly = 2) { mockBatch.set(mockExerciseDoc, any()) }
     }
 
@@ -114,9 +113,7 @@ class WorkoutRepositoryTest {
         assertTrue(resultCaptured!!.isSuccess)
 
         verify { mockWorkoutsCollection.document(testWorkoutId) }
-
         verify { mockBatch.set(mockExerciseDoc, any()) }
-
         verify { mockBatch.commit() }
     }
 
@@ -129,7 +126,6 @@ class WorkoutRepositoryTest {
         }
 
         assertTrue(resultCaptured!!.isFailure)
-
         verify(exactly = 0) { mockBatch.commit() }
     }
 
@@ -159,6 +155,183 @@ class WorkoutRepositoryTest {
         assertTrue(resultList != null)
         assertEquals(1, resultList!!.size)
         assertEquals(testWorkoutId, resultList!![0].id)
+    }
+
+    @Test
+    fun `getWorkoutsFeedForUsers returns merged sorted list`() {
+        val currentUser = "me"
+        val followedUser = "friend"
+
+        val mockUserDocMe: DocumentReference = mockk()
+        val mockUserDocFriend: DocumentReference = mockk()
+        val mockWorkoutsMe: CollectionReference = mockk()
+        val mockWorkoutsFriend: CollectionReference = mockk()
+
+        val mockQueryMe: Query = mockk()
+        val mockQueryFriend: Query = mockk()
+        val mockQueryMeLimited: Query = mockk()
+        val mockQueryFriendLimited: Query = mockk()
+
+        val taskMe: Task<QuerySnapshot> = mockk()
+        val taskFriend: Task<QuerySnapshot> = mockk()
+
+        val snapMe: QuerySnapshot = mockk()
+        val snapFriend: QuerySnapshot = mockk()
+
+        val docMe: QueryDocumentSnapshot = mockk()
+        val docFriend: QueryDocumentSnapshot = mockk()
+
+        every { mockUsersCollection.document(currentUser) } returns mockUserDocMe
+        every { mockUsersCollection.document(followedUser) } returns mockUserDocFriend
+
+        every { mockUserDocMe.collection("workouts") } returns mockWorkoutsMe
+        every { mockUserDocFriend.collection("workouts") } returns mockWorkoutsFriend
+
+        every { mockWorkoutsMe.orderBy("workoutDate", Query.Direction.DESCENDING) } returns mockQueryMe
+        every { mockWorkoutsFriend.orderBy("workoutDate", Query.Direction.DESCENDING) } returns mockQueryFriend
+
+        every { mockQueryMe.limit(any()) } returns mockQueryMeLimited
+        every { mockQueryFriend.limit(any()) } returns mockQueryFriendLimited
+
+        every { mockQueryMeLimited.get() } returns taskMe
+        every { mockQueryFriendLimited.get() } returns taskFriend
+
+        val newer = Date(2000L)
+        val older = Date(1000L)
+
+        every { docMe.id } returns "w_me"
+        every { docMe.getTimestamp("workoutDate") } returns Timestamp(newer)
+        every { docMe.getTimestamp("createdAt") } returns Timestamp(newer)
+
+        every { docFriend.id } returns "w_friend"
+        every { docFriend.getTimestamp("workoutDate") } returns Timestamp(older)
+        every { docFriend.getTimestamp("createdAt") } returns Timestamp(older)
+
+        every { snapMe.documents } returns listOf(docMe)
+        every { snapFriend.documents } returns listOf(docFriend)
+
+        every { taskMe.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(snapMe)
+            taskMe
+        }
+        every { taskMe.addOnFailureListener(any()) } returns taskMe
+
+        every { taskFriend.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(snapFriend)
+            taskFriend
+        }
+        every { taskFriend.addOnFailureListener(any()) } returns taskFriend
+
+        var captured: Result<List<Workout>>? = null
+
+        repository.getWorkoutsFeedForUsers(
+            currentUserId = currentUser,
+            followedUserIds = listOf(followedUser),
+            perUserLimit = 10
+        ) { result ->
+            captured = result
+        }
+
+        assertTrue(captured!!.isSuccess)
+        val list = captured!!.getOrNull()!!
+        assertEquals(2, list.size)
+        assertEquals("w_me", list[0].id)
+        assertEquals(currentUser, list[0].userId)
+        assertEquals("w_friend", list[1].id)
+        assertEquals(followedUser, list[1].userId)
+    }
+
+    @Test
+    fun `getWorkoutsFeedForUsers returns failure when all queries fail and no data`() {
+        val currentUser = "me"
+
+        val mockUserDocMe: DocumentReference = mockk()
+        val mockWorkoutsMe: CollectionReference = mockk()
+        val mockQueryMe: Query = mockk()
+        val mockQueryMeLimited: Query = mockk()
+        val taskMe: Task<QuerySnapshot> = mockk()
+
+        val exception = Exception("fail")
+
+        every { mockUsersCollection.document(currentUser) } returns mockUserDocMe
+        every { mockUserDocMe.collection("workouts") } returns mockWorkoutsMe
+        every { mockWorkoutsMe.orderBy("workoutDate", Query.Direction.DESCENDING) } returns mockQueryMe
+        every { mockQueryMe.limit(any()) } returns mockQueryMeLimited
+        every { mockQueryMeLimited.get() } returns taskMe
+
+        every { taskMe.addOnSuccessListener(any()) } returns taskMe
+        every { taskMe.addOnFailureListener(any()) } answers {
+            val listener = firstArg<OnFailureListener>()
+            listener.onFailure(exception)
+            taskMe
+        }
+
+        var captured: Result<List<Workout>>? = null
+
+        repository.getWorkoutsFeedForUsers(
+            currentUserId = currentUser,
+            followedUserIds = emptyList(),
+            perUserLimit = 10
+        ) { result ->
+            captured = result
+        }
+
+        assertTrue(captured!!.isFailure)
+        assertEquals("fail", captured!!.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `getUserDisplayName returns displayName when present`() {
+        every { mockUsersCollection.document("u1") } returns mockUserDoc
+        every { mockUserDoc.get() } returns mockTaskDoc
+
+        every { mockUserDocSnapshot.getString("displayName") } returns "Cliff"
+        every { mockUserDocSnapshot.getString("username") } returns null
+        every { mockUserDocSnapshot.getString("name") } returns null
+
+        every { mockTaskDoc.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
+            listener.onSuccess(mockUserDocSnapshot)
+            mockTaskDoc
+        }
+        every { mockTaskDoc.addOnFailureListener(any()) } returns mockTaskDoc
+
+        var captured: Result<String>? = null
+
+        repository.getUserDisplayName("u1") { result ->
+            captured = result
+        }
+
+        assertTrue(captured!!.isSuccess)
+        assertEquals("Cliff", captured!!.getOrNull())
+    }
+
+    @Test
+    fun `getUserDisplayName falls back to userId when no fields present`() {
+        every { mockUsersCollection.document("u2") } returns mockUserDoc
+        every { mockUserDoc.get() } returns mockTaskDoc
+
+        every { mockUserDocSnapshot.getString("displayName") } returns null
+        every { mockUserDocSnapshot.getString("username") } returns null
+        every { mockUserDocSnapshot.getString("name") } returns null
+
+        every { mockTaskDoc.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
+            listener.onSuccess(mockUserDocSnapshot)
+            mockTaskDoc
+        }
+        every { mockTaskDoc.addOnFailureListener(any()) } returns mockTaskDoc
+
+        var captured: Result<String>? = null
+
+        repository.getUserDisplayName("u2") { result ->
+            captured = result
+        }
+
+        assertTrue(captured!!.isSuccess)
+        assertEquals("u2", captured!!.getOrNull())
     }
 
     @Test

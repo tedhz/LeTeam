@@ -109,7 +109,9 @@ fun MainScreen() {
                 )
             }
             composable(Routes.MYWORKOUTS) {
-                MyWorkoutsScreen()
+                MyWorkoutsScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
             }
 
             composable(

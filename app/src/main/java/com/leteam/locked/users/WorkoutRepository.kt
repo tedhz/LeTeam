@@ -120,6 +120,65 @@ class WorkoutRepository(
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
 
+    fun getWorkoutsFeedForUsers(
+        currentUserId: String,
+        followedUserIds: List<String>,
+        perUserLimit: Long = 10,
+        onResult: (Result<List<Workout>>) -> Unit
+    ) {
+        // include own user
+        val userIds = (followedUserIds + currentUserId).distinct()
+
+        if (userIds.isEmpty()) {
+            onResult(Result.success(emptyList()))
+            return
+        }
+
+        val allWorkouts = mutableListOf<Workout>()
+        var remaining = userIds.size
+        var firstError: Exception? = null
+
+        userIds.forEach { userId ->
+            workoutsCollection(userId)
+                .orderBy("workoutDate", Query.Direction.DESCENDING)
+                .limit(perUserLimit)
+                .get()
+                .addOnSuccessListener { snapshot ->
+                    val workouts = snapshot.documents.map { doc ->
+                        val workoutDate = doc.getTimestamp("workoutDate")?.toDate() ?: Date()
+                        val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+
+                        Workout(
+                            id = doc.id,
+                            userId = userId,
+                            workoutDate = workoutDate,
+                            createdAt = createdAt
+                        )
+                    }
+                    allWorkouts.addAll(workouts)
+
+                    remaining -= 1
+                    if (remaining == 0) {
+                        val merged = allWorkouts.sortedByDescending { it.workoutDate }
+                        onResult(Result.success(merged))
+                    }
+                }
+                .addOnFailureListener { e ->
+                    if (firstError == null) firstError = e
+
+                    remaining -= 1
+                    if (remaining == 0) {
+                        if (allWorkouts.isNotEmpty()) {
+                            val merged = allWorkouts.sortedByDescending { it.workoutDate }
+                            onResult(Result.success(merged))
+                        } else {
+                            onResult(Result.failure(firstError ?: e))
+                        }
+                    }
+                }
+        }
+    }
+
     fun getExercisesForWorkout(
         userId: String,
         workoutId: String,
@@ -161,6 +220,27 @@ class WorkoutRepository(
             .update(payload)
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun getUserDisplayName(
+        userId: String,
+        onResult: (Result<String>) -> Unit
+    ) {
+        db.collection("users")
+            .document(userId)
+            .get()
+            .addOnSuccessListener { doc ->
+                val displayName =
+                    doc.getString("displayName")
+                        ?: doc.getString("username")
+                        ?: doc.getString("name")
+                        ?: userId  // fallback
+
+                onResult(Result.success(displayName))
+            }
+            .addOnFailureListener { e ->
+                onResult(Result.failure(e))
+            }
     }
 
     fun deleteExercise(

@@ -81,4 +81,7 @@ dependencies {
     androidTestImplementation(libs.androidx.runner)
     androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.kotlinx.coroutines.test)
+    implementation(libs.androidx.material.icons.extended)
+
 }
+

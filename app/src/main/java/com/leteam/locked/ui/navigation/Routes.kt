@@ -7,7 +7,9 @@ object Routes {
     const val PROFILE = "profile"
     const val SETTINGS = "settings"
     const val CAMERA = "camera"
+    const val WORKOUTS = "workouts"
     const val POSTING = "posting/{imageUri}"
+    const val MYWORKOUTS = "myworkouts"
     fun posting(imageUri: Uri): String {
         val encodedUri = Uri.encode(imageUri.toString())
         return "posting/$encodedUri"

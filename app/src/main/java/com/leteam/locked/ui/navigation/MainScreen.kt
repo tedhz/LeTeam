@@ -3,9 +3,10 @@ package com.leteam.locked.ui.navigation
 import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -28,6 +29,8 @@ import com.leteam.locked.ui.screens.camera.PostingScreen
 import com.leteam.locked.ui.screens.home.HomeScreen
 import com.leteam.locked.ui.screens.profile.ProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
+import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
+import com.leteam.locked.ui.screens.workouts.WorkoutsFeedScreen
 
 private data class NavItem(
     val route: String,
@@ -40,14 +43,17 @@ fun MainScreen() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
     val showBottomBar = currentDestination?.route in listOf(
         Routes.HOME,
+        Routes.WORKOUTS,
         Routes.PROFILE,
         Routes.SETTINGS
     )
 
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
+        NavItem(Routes.WORKOUTS, "Workouts", Icons.Default.FitnessCenter),
         NavItem(Routes.PROFILE, "Profile", Icons.Default.Person),
         NavItem(Routes.SETTINGS, "Settings", Icons.Default.Settings)
     )
@@ -87,8 +93,13 @@ fun MainScreen() {
                 )
             }
 
+            composable(Routes.WORKOUTS) { WorkoutsFeedScreen(
+                onWorkoutOpen = {navController.navigate(Routes.MYWORKOUTS)}
+            ) }
+
             composable(Routes.PROFILE) { ProfileScreen() }
             composable(Routes.SETTINGS) { SettingsScreen() }
+
             composable(Routes.CAMERA) {
                 CameraScreen(
                     onBackClick = { navController.popBackStack() },
@@ -96,6 +107,9 @@ fun MainScreen() {
                         navController.navigate(Routes.posting(uri))
                     }
                 )
+            }
+            composable(Routes.MYWORKOUTS) {
+                MyWorkoutsScreen()
             }
 
             composable(

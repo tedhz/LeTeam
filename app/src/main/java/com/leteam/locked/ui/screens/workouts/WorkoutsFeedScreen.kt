@@ -145,7 +145,6 @@ private fun WorkoutFeedCard(item: WorkoutFeedItem) {
 
 @Composable
 private fun ExerciseRow(ex: Exercise) {
-    // Looks like: Bench Press • 4 x 8 @ 135
     val detail = "${ex.numberOfSets} x ${ex.repsPerSet} @ ${trimWeight(ex.weightAmount)}"
 
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

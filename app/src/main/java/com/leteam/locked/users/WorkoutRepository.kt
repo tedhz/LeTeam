@@ -142,4 +142,37 @@ class WorkoutRepository(
             }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
+
+    fun updateExercise(
+        userId: String,
+        workoutId: String,
+        exercise: Exercise,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        val payload = mapOf(
+            "exerciseName" to exercise.name,
+            "numberOfSets" to exercise.numberOfSets,
+            "repsPerSet" to exercise.repsPerSet,
+            "weightAmount" to exercise.weightAmount
+        )
+
+        workoutsCollection(userId).document(workoutId)
+            .collection("exercises").document(exercise.id)
+            .update(payload)
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun deleteExercise(
+        userId: String,
+        workoutId: String,
+        exerciseId: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        workoutsCollection(userId).document(workoutId)
+            .collection("exercises").document(exerciseId)
+            .delete()
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
 }

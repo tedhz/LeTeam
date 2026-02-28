@@ -13,9 +13,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import coil.compose.AsyncImage
+import com.leteam.locked.posts.Post
+import com.leteam.locked.workout.Workout
+import java.text.SimpleDateFormat
+import java.util.Locale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
@@ -55,6 +62,8 @@ fun ProfileScreen(
     val isFollowing by viewModel.isFollowing.collectAsState()
     val followInProgress by viewModel.followInProgress.collectAsState()
     val followError by viewModel.followError.collectAsState()
+    val recentPosts by viewModel.recentPosts.collectAsState()
+    val recentWorkouts by viewModel.recentWorkouts.collectAsState()
 
     LaunchedEffect(profileUserId, viewModel.currentUserId) {
         viewModel.loadProfile(profileUserId)
@@ -186,6 +195,38 @@ fun ProfileScreen(
             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Recent posts",
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        if (recentPosts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No posts yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            recentPosts.take(5).forEach { post ->
+                PostHistoryItem(post = post)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
         Text(
             text = "Workout history",
             style = MaterialTheme.typography.titleSmall,
@@ -193,19 +234,25 @@ fun ProfileScreen(
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp)
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "Your progress and past workouts will appear here",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        if (recentWorkouts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(72.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No workouts yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            recentWorkouts.firstOrNull()?.let { workout ->
+                WorkoutHistoryItem(workout = workout)
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -221,6 +268,64 @@ fun ProfileScreen(
             },
             title = { Text("Edit profile") },
             text = { Text("Profile editing will live here soon.") }
+        )
+    }
+}
+
+private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+
+@Composable
+private fun PostHistoryItem(post: Post) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (post.photoUrl.isNotBlank()) {
+            AsyncImage(
+                model = post.photoUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(6.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            if (post.caption.isNotBlank()) {
+                Text(
+                    text = post.caption,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2
+                )
+            }
+            Text(
+                text = dateFormat.format(post.createdAt),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkoutHistoryItem(workout: Workout) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = dateFormat.format(workout.workoutDate),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

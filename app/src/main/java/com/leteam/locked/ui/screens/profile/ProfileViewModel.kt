@@ -3,10 +3,13 @@ package com.leteam.locked.ui.screens.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.leteam.locked.firebase.FirebaseProvider
+import com.leteam.locked.posts.Post
 import com.leteam.locked.posts.PostsRepository
 import com.leteam.locked.users.FollowRepository
 import com.leteam.locked.users.User
 import com.leteam.locked.users.UserRepository
+import com.leteam.locked.workout.Workout
+import com.leteam.locked.workout.WorkoutRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +18,8 @@ import kotlinx.coroutines.launch
 class ProfileViewModel(
     private val userRepository: UserRepository = UserRepository(FirebaseProvider.firestore),
     private val followRepository: FollowRepository = FollowRepository(FirebaseProvider.firestore),
-    private val postsRepository: PostsRepository = PostsRepository(FirebaseProvider.firestore)
+    private val postsRepository: PostsRepository = PostsRepository(FirebaseProvider.firestore),
+    private val workoutRepository: WorkoutRepository = WorkoutRepository(FirebaseProvider.firestore)
 ) : ViewModel() {
 
     private val auth = FirebaseProvider.auth
@@ -42,6 +46,12 @@ class ProfileViewModel(
     private val _followError = MutableStateFlow<String?>(null)
     val followError: StateFlow<String?> = _followError.asStateFlow()
 
+    private val _recentPosts = MutableStateFlow<List<Post>>(emptyList())
+    val recentPosts: StateFlow<List<Post>> = _recentPosts.asStateFlow()
+
+    private val _recentWorkouts = MutableStateFlow<List<Workout>>(emptyList())
+    val recentWorkouts: StateFlow<List<Workout>> = _recentWorkouts.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -51,6 +61,8 @@ class ProfileViewModel(
         viewModelScope.launch {
             loadUser(targetId)
             loadCounts(targetId)
+            loadRecentPosts(targetId)
+            loadRecentWorkouts(targetId)
             if (currentUserId != null && currentUserId != targetId) {
                 loadIsFollowing(currentUserId!!, targetId)
             } else {
@@ -75,6 +87,20 @@ class ProfileViewModel(
         }
         postsRepository.getPostsByUser(userId, 500) { result ->
             result.onSuccess { _postCount.value = it.size }
+        }
+    }
+
+    private fun loadRecentPosts(userId: String) {
+        postsRepository.getPostsByUser(userId, 20) { result ->
+            result.onSuccess { _recentPosts.value = it }
+            result.onFailure { _recentPosts.value = emptyList() }
+        }
+    }
+
+    private fun loadRecentWorkouts(userId: String) {
+        workoutRepository.getWorkouts(userId) { result ->
+            result.onSuccess { _recentWorkouts.value = it.take(1) }
+            result.onFailure { _recentWorkouts.value = emptyList() }
         }
     }
 

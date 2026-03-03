@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Comment
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -124,7 +125,8 @@ fun HomeScreen(
                 items(feedPosts, key = { it.post.id }) { postWithUser ->
                     FeedPostCard(
                         postWithUser = postWithUser,
-                        isBlurred = !hasPostedToday
+                        isBlurred = !hasPostedToday,
+                        viewModel = viewModel
                     )
                 }
             }
@@ -193,7 +195,8 @@ private fun TodaysWorkoutCheckInCard(onPostClick: () -> Unit) {
 @Composable
 private fun FeedPostCard(
     postWithUser: PostWithUser,
-    isBlurred: Boolean
+    isBlurred: Boolean,
+    viewModel: HomeViewModel
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -298,16 +301,36 @@ private fun FeedPostCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = { /* Placeholder for like functionality */ },
-                            modifier = Modifier.size(40.dp)
+                        val currentUserId = viewModel.currentUserId
+                        val isLiked = currentUserId != null && postWithUser.post.likes.contains(currentUserId)
+                        val likeCount = postWithUser.post.likes.size
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Favorite,
-                                contentDescription = "Like",
-                                modifier = Modifier.size(24.dp),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            IconButton(
+                                onClick = { viewModel.toggleLike(postWithUser.post.id) },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isLiked) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder,
+                                    contentDescription = if (isLiked) "Unlike" else "Like",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = if (isLiked) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
+                            if (likeCount > 0) {
+                                Text(
+                                    text = likeCount.toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                         IconButton(
                             onClick = { /* Placeholder for comment functionality */ },

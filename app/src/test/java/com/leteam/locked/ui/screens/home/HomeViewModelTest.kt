@@ -249,5 +249,159 @@ class HomeViewModelTest {
         every { mockAuth.currentUser } returns null
         assertNull(viewModel.currentUserId)
     }
+
+    @Test
+    fun `toggleLike calls likePost when post is not liked`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(
+            id = "post1",
+            caption = "Test post",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = emptyList()
+        )
+
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")))
+        }
+
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        every { mockPostsRepo.likePost("post1", testUserId, any()) } answers {
+            val callback = lastArg<(Result<Unit>) -> Unit>()
+            callback(Result.success(Unit))
+        }
+
+        viewModel.toggleLike("post1")
+        advanceUntilIdle()
+
+        verify { mockPostsRepo.likePost("post1", testUserId, any()) }
+        verify(exactly = 0) { mockPostsRepo.unlikePost(any(), any(), any()) }
+
+        val updatedPosts = viewModel.feedPosts.value
+        assertEquals(1, updatedPosts.size)
+        assertTrue(updatedPosts[0].post.likes.contains(testUserId))
+    }
+
+    @Test
+    fun `toggleLike calls unlikePost when post is already liked`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(
+            id = "post1",
+            caption = "Test post",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = listOf(testUserId)
+        )
+
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")))
+        }
+
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        every { mockPostsRepo.unlikePost("post1", testUserId, any()) } answers {
+            val callback = lastArg<(Result<Unit>) -> Unit>()
+            callback(Result.success(Unit))
+        }
+
+        viewModel.toggleLike("post1")
+        advanceUntilIdle()
+
+        verify { mockPostsRepo.unlikePost("post1", testUserId, any()) }
+        verify(exactly = 0) { mockPostsRepo.likePost(any(), any(), any()) }
+
+        val updatedPosts = viewModel.feedPosts.value
+        assertEquals(1, updatedPosts.size)
+        assertFalse(updatedPosts[0].post.likes.contains(testUserId))
+    }
+
+    @Test
+    fun `toggleLike updates local state optimistically when unliking`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(
+            id = "post1",
+            caption = "Test post",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = listOf(testUserId, "user_other")
+        )
+
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")))
+        }
+
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        every { mockPostsRepo.unlikePost("post1", testUserId, any()) } answers {
+            val callback = lastArg<(Result<Unit>) -> Unit>()
+            callback(Result.success(Unit))
+        }
+
+        viewModel.toggleLike("post1")
+        advanceUntilIdle()
+
+        val updatedPosts = viewModel.feedPosts.value
+        assertEquals(1, updatedPosts.size)
+        assertFalse(updatedPosts[0].post.likes.contains(testUserId))
+        assertEquals(1, updatedPosts[0].post.likes.size)
+        assertTrue(updatedPosts[0].post.likes.contains("user_other"))
+    }
+
+    @Test
+    fun `toggleLike does nothing when no current user`() = runTest {
+        every { mockAuth.currentUser } returns null
+
+        viewModel.toggleLike("post1")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { mockPostsRepo.likePost(any(), any(), any()) }
+        verify(exactly = 0) { mockPostsRepo.unlikePost(any(), any(), any()) }
+    }
+
+    @Test
+    fun `toggleLike does nothing when post not found in feed`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.toggleLike("post1")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { mockPostsRepo.likePost(any(), any(), any()) }
+        verify(exactly = 0) { mockPostsRepo.unlikePost(any(), any(), any()) }
+    }
 }
 

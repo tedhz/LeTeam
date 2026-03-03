@@ -121,7 +121,7 @@ class PostsRepositoryTest {
     }
 
     @Test
-    fun `getPost returns parsed post`() {
+    fun `getPost returns parsed post with likes`() {
         every { mockExistingPostDoc.get() } returns mockTaskDoc
 
         every { mockPostDocSnapshot.exists() } returns true
@@ -130,6 +130,7 @@ class PostsRepositoryTest {
         every { mockPostDocSnapshot.getString("ownerUserId") } returns testOwnerUserId
         every { mockPostDocSnapshot.getString("photoUrl") } returns "url"
         every { mockPostDocSnapshot.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockPostDocSnapshot.get("likes") } returns listOf(testLikerUserId, "user_other")
 
         every { mockTaskDoc.addOnSuccessListener(any()) } answers {
             val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
@@ -149,6 +150,37 @@ class PostsRepositoryTest {
         assertEquals("cap", postCaptured!!.caption)
         assertEquals(testOwnerUserId, postCaptured!!.ownerUserId)
         assertEquals("url", postCaptured!!.photoUrl)
+        assertEquals(2, postCaptured!!.likes.size)
+        assertTrue(postCaptured!!.likes.contains(testLikerUserId))
+    }
+
+    @Test
+    fun `getPost returns empty likes when likes field is null`() {
+        every { mockExistingPostDoc.get() } returns mockTaskDoc
+
+        every { mockPostDocSnapshot.exists() } returns true
+        every { mockPostDocSnapshot.id } returns testPostId
+        every { mockPostDocSnapshot.getString("caption") } returns "cap"
+        every { mockPostDocSnapshot.getString("ownerUserId") } returns testOwnerUserId
+        every { mockPostDocSnapshot.getString("photoUrl") } returns "url"
+        every { mockPostDocSnapshot.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockPostDocSnapshot.get("likes") } returns null
+
+        every { mockTaskDoc.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
+            listener.onSuccess(mockPostDocSnapshot)
+            mockTaskDoc
+        }
+        every { mockTaskDoc.addOnFailureListener(any()) } returns mockTaskDoc
+
+        var postCaptured: Post? = null
+
+        repository.getPost(testPostId) { result ->
+            postCaptured = result.getOrNull()
+        }
+
+        assertNotNull(postCaptured)
+        assertTrue(postCaptured!!.likes.isEmpty())
     }
 
     @Test
@@ -163,6 +195,7 @@ class PostsRepositoryTest {
         every { mockQueryDocSnapshot.getString("ownerUserId") } returns testOwnerUserId
         every { mockQueryDocSnapshot.getString("photoUrl") } returns "url"
         every { mockQueryDocSnapshot.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockQueryDocSnapshot.get("likes") } returns listOf(testLikerUserId)
 
         every { mockQuerySnapshot.documents } returns listOf(mockQueryDocSnapshot)
 
@@ -182,14 +215,57 @@ class PostsRepositoryTest {
         assertNotNull(postsCaptured)
         assertEquals(1, postsCaptured!!.size)
         assertEquals(testPostId, postsCaptured!![0].id)
+        assertEquals(1, postsCaptured!![0].likes.size)
+        assertTrue(postsCaptured!![0].likes.contains(testLikerUserId))
 
         verify { mockPostsCollection.whereEqualTo("ownerUserId", testOwnerUserId) }
         verify { mockQuery.orderBy("createdAt", Query.Direction.DESCENDING) }
     }
 
     @Test
-    fun `likePost writes liker doc under likes subcollection`() {
-        every { mockLikeDoc.set(any<Map<String, Any>>()) } returns mockTaskVoid
+    fun `getPostsByUser handles null likes field`() {
+        every { mockPostsCollection.whereEqualTo("ownerUserId", testOwnerUserId) } returns mockQuery
+        every { mockQuery.orderBy("createdAt", Query.Direction.DESCENDING) } returns mockQuery
+        every { mockQuery.limit(any()) } returns mockQuery
+        every { mockQuery.get() } returns mockTaskQuery
+
+        every { mockQueryDocSnapshot.id } returns testPostId
+        every { mockQueryDocSnapshot.getString("caption") } returns "cap"
+        every { mockQueryDocSnapshot.getString("ownerUserId") } returns testOwnerUserId
+        every { mockQueryDocSnapshot.getString("photoUrl") } returns "url"
+        every { mockQueryDocSnapshot.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockQueryDocSnapshot.get("likes") } returns null
+
+        every { mockQuerySnapshot.documents } returns listOf(mockQueryDocSnapshot)
+
+        every { mockTaskQuery.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockQuerySnapshot)
+            mockTaskQuery
+        }
+        every { mockTaskQuery.addOnFailureListener(any()) } returns mockTaskQuery
+
+        var postsCaptured: List<Post>? = null
+
+        repository.getPostsByUser(testOwnerUserId, limit = 10) { result ->
+            postsCaptured = result.getOrNull()
+        }
+
+        assertNotNull(postsCaptured)
+        assertEquals(1, postsCaptured!!.size)
+        assertTrue(postsCaptured!![0].likes.isEmpty())
+    }
+
+    @Test
+    fun `likePost adds userId to likes array using arrayUnion`() {
+        val mockUpdateTask: Task<Void> = mockk()
+        every { mockExistingPostDoc.update("likes", any<FieldValue>()) } returns mockUpdateTask
+        every { mockUpdateTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<Void>>()
+            listener.onSuccess(null)
+            mockUpdateTask
+        }
+        every { mockUpdateTask.addOnFailureListener(any()) } returns mockUpdateTask
 
         var resultCaptured: Result<Unit>? = null
 
@@ -198,14 +274,19 @@ class PostsRepositoryTest {
         assertTrue(resultCaptured!!.isSuccess)
 
         verify { mockPostsCollection.document(testPostId) }
-        verify { mockExistingPostDoc.collection("likes") }
-        verify { mockLikesCollection.document(testLikerUserId) }
-        verify { mockLikeDoc.set(any<Map<String, Any>>()) }
+        verify { mockExistingPostDoc.update("likes", any<FieldValue>()) }
     }
 
     @Test
-    fun `unlikePost deletes liker doc under likes subcollection`() {
-        every { mockLikeDoc.delete() } returns mockTaskVoid
+    fun `unlikePost removes userId from likes array using arrayRemove`() {
+        val mockUpdateTask: Task<Void> = mockk()
+        every { mockExistingPostDoc.update("likes", any<FieldValue>()) } returns mockUpdateTask
+        every { mockUpdateTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<Void>>()
+            listener.onSuccess(null)
+            mockUpdateTask
+        }
+        every { mockUpdateTask.addOnFailureListener(any()) } returns mockUpdateTask
 
         var resultCaptured: Result<Unit>? = null
 
@@ -213,13 +294,14 @@ class PostsRepositoryTest {
 
         assertTrue(resultCaptured!!.isSuccess)
 
-        verify { mockLikeDoc.delete() }
+        verify { mockPostsCollection.document(testPostId) }
+        verify { mockExistingPostDoc.update("likes", any<FieldValue>()) }
     }
 
     @Test
-    fun `isPostLikedByUser returns true when like doc exists`() {
-        every { mockLikeDoc.get() } returns mockTaskDoc
-        every { mockPostDocSnapshot.exists() } returns true
+    fun `isPostLikedByUser returns true when userId in likes array`() {
+        every { mockExistingPostDoc.get() } returns mockTaskDoc
+        every { mockPostDocSnapshot.get("likes") } returns listOf(testLikerUserId, "user_other")
 
         every { mockTaskDoc.addOnSuccessListener(any()) } answers {
             val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
@@ -235,6 +317,50 @@ class PostsRepositoryTest {
         }
 
         assertEquals(true, liked)
+        verify { mockPostsCollection.document(testPostId) }
+        verify { mockExistingPostDoc.get() }
+    }
+
+    @Test
+    fun `isPostLikedByUser returns false when userId not in likes array`() {
+        every { mockExistingPostDoc.get() } returns mockTaskDoc
+        every { mockPostDocSnapshot.get("likes") } returns listOf("user_other", "user_another")
+
+        every { mockTaskDoc.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
+            listener.onSuccess(mockPostDocSnapshot)
+            mockTaskDoc
+        }
+        every { mockTaskDoc.addOnFailureListener(any()) } returns mockTaskDoc
+
+        var liked: Boolean? = null
+
+        repository.isPostLikedByUser(testPostId, testLikerUserId) { result ->
+            liked = result.getOrNull()
+        }
+
+        assertEquals(false, liked)
+    }
+
+    @Test
+    fun `isPostLikedByUser returns false when likes field is null`() {
+        every { mockExistingPostDoc.get() } returns mockTaskDoc
+        every { mockPostDocSnapshot.get("likes") } returns null
+
+        every { mockTaskDoc.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<DocumentSnapshot>>()
+            listener.onSuccess(mockPostDocSnapshot)
+            mockTaskDoc
+        }
+        every { mockTaskDoc.addOnFailureListener(any()) } returns mockTaskDoc
+
+        var liked: Boolean? = null
+
+        repository.isPostLikedByUser(testPostId, testLikerUserId) { result ->
+            liked = result.getOrNull()
+        }
+
+        assertEquals(false, liked)
     }
 
     @Test
@@ -324,6 +450,7 @@ class PostsRepositoryTest {
         every { mockPostDoc.getString("ownerUserId") } returns followedUserId
         every { mockPostDoc.getString("photoUrl") } returns "url"
         every { mockPostDoc.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockPostDoc.get("likes") } returns emptyList<String>()
 
         every { mockPostsQuerySnapshot.documents } returns listOf(mockPostDoc)
 

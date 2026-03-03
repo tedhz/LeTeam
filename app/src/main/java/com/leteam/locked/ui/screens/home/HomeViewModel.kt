@@ -122,4 +122,44 @@ class HomeViewModel(
     fun refresh() {
         loadHomeData()
     }
+
+    fun toggleLike(postId: String) {
+        val userId = currentUserId ?: return
+
+        viewModelScope.launch {
+            val currentPosts = _feedPosts.value
+            val postWithUser = currentPosts.find { it.post.id == postId } ?: return@launch
+            val isLiked = postWithUser.post.likes.contains(userId)
+
+            if (isLiked) {
+                postsRepository.unlikePost(postId, userId) { result ->
+                    result.onSuccess {
+                        updatePostLikes(postId, userId, remove = true)
+                    }
+                }
+            } else {
+                postsRepository.likePost(postId, userId) { result ->
+                    result.onSuccess {
+                        updatePostLikes(postId, userId, remove = false)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updatePostLikes(postId: String, userId: String, remove: Boolean) {
+        val currentPosts = _feedPosts.value.toMutableList()
+        val index = currentPosts.indexOfFirst { it.post.id == postId }
+        if (index >= 0) {
+            val postWithUser = currentPosts[index]
+            val updatedLikes = if (remove) {
+                postWithUser.post.likes.filter { it != userId }
+            } else {
+                postWithUser.post.likes + userId
+            }
+            val updatedPost = postWithUser.post.copy(likes = updatedLikes)
+            currentPosts[index] = postWithUser.copy(post = updatedPost)
+            _feedPosts.value = currentPosts
+        }
+    }
 }

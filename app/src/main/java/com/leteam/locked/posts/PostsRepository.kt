@@ -11,7 +11,8 @@ data class Post(
     val caption: String = "",
     val ownerUserId: String = "",
     val photoUrl: String = "",
-    val createdAt: Date = Date()
+    val createdAt: Date = Date(),
+    val likes: List<String> = emptyList()
 )
 
 data class Comment(
@@ -86,12 +87,15 @@ class PostsRepository(
                 }
 
                 val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+                val likes = doc.get("likes") as? List<*> ?: emptyList<Any>()
+                val likesList = likes.mapNotNull { it as? String }
                 val post = Post(
                     id = doc.id,
                     caption = doc.getString("caption") ?: "",
                     ownerUserId = doc.getString("ownerUserId") ?: "",
                     photoUrl = doc.getString("photoUrl") ?: "",
-                    createdAt = createdAt
+                    createdAt = createdAt,
+                    likes = likesList
                 )
                 onResult(Result.success(post))
             }
@@ -111,12 +115,15 @@ class PostsRepository(
             .addOnSuccessListener { snapshot ->
                 val posts = snapshot.documents.map { doc ->
                     val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+                    val likes = doc.get("likes") as? List<*> ?: emptyList<Any>()
+                    val likesList = likes.mapNotNull { it as? String }
                     Post(
                         id = doc.id,
                         caption = doc.getString("caption") ?: "",
                         ownerUserId = doc.getString("ownerUserId") ?: "",
                         photoUrl = doc.getString("photoUrl") ?: "",
-                        createdAt = createdAt
+                        createdAt = createdAt,
+                        likes = likesList
                     )
                 }
                 onResult(Result.success(posts))
@@ -162,12 +169,15 @@ class PostsRepository(
                         .addOnSuccessListener { postsSnap ->
                             val posts = postsSnap.documents.map { doc ->
                                 val createdAt = doc.getTimestamp("createdAt")?.toDate() ?: Date()
+                                val likes = doc.get("likes") as? List<*> ?: emptyList<Any>()
+                                val likesList = likes.mapNotNull { it as? String }
                                 Post(
                                     id = doc.id,
                                     caption = doc.getString("caption") ?: "",
                                     ownerUserId = doc.getString("ownerUserId") ?: "",
                                     photoUrl = doc.getString("photoUrl") ?: "",
-                                    createdAt = createdAt
+                                    createdAt = createdAt,
+                                    likes = likesList
                                 )
                             }
                             allPosts.addAll(posts)
@@ -188,11 +198,8 @@ class PostsRepository(
         likerUserId: String,
         onResult: (Result<Unit>) -> Unit
     ) {
-        val likeRef = postLikesCollection(postId).document(likerUserId)
-        val payload = hashMapOf(
-            "createdAt" to Timestamp.now()
-        )
-        likeRef.set(payload)
+        postDoc(postId)
+            .update("likes", com.google.firebase.firestore.FieldValue.arrayUnion(likerUserId))
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
@@ -202,8 +209,8 @@ class PostsRepository(
         likerUserId: String,
         onResult: (Result<Unit>) -> Unit
     ) {
-        postLikesCollection(postId).document(likerUserId)
-            .delete()
+        postDoc(postId)
+            .update("likes", com.google.firebase.firestore.FieldValue.arrayRemove(likerUserId))
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
@@ -213,9 +220,13 @@ class PostsRepository(
         likerUserId: String,
         onResult: (Result<Boolean>) -> Unit
     ) {
-        postLikesCollection(postId).document(likerUserId)
+        postDoc(postId)
             .get()
-            .addOnSuccessListener { doc -> onResult(Result.success(doc.exists())) }
+            .addOnSuccessListener { doc ->
+                val likes = doc.get("likes") as? List<*> ?: emptyList<Any>()
+                val likesList = likes.mapNotNull { it as? String }
+                onResult(Result.success(likesList.contains(likerUserId)))
+            }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
 

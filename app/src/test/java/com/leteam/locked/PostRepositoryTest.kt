@@ -288,4 +288,61 @@ class PostsRepositoryTest {
         assertEquals(testPostId, comments!![0].postId)
         assertEquals("nice", comments!![0].text)
     }
+
+    @Test
+    fun `getFeedPosts excludes current user's own posts`() {
+        val currentUserId = "user_current"
+        val followedUserId = "user_followed"
+        val mockFollowsCollection: CollectionReference = mockk()
+        val mockFollowsQuery: QuerySnapshot = mockk()
+        val mockFollowDoc: QueryDocumentSnapshot = mockk()
+        val mockPostsQuery: Query = mockk()
+        val mockPostsQuerySnapshot: QuerySnapshot = mockk()
+        val mockPostDoc: QueryDocumentSnapshot = mockk()
+        val mockFollowsTask: Task<QuerySnapshot> = mockk()
+        val mockPostsTask: Task<QuerySnapshot> = mockk()
+
+        every { mockUsersCollection.document(currentUserId).collection("follows") } returns mockFollowsCollection
+        every { mockFollowsCollection.get() } returns mockFollowsTask
+        every { mockFollowsQuery.documents } returns listOf(mockFollowDoc)
+        every { mockFollowDoc.id } returns followedUserId
+
+        every { mockFollowsTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockFollowsQuery)
+            mockFollowsTask
+        }
+        every { mockFollowsTask.addOnFailureListener(any()) } returns mockFollowsTask
+
+        every { mockPostsCollection.whereIn("ownerUserId", listOf(followedUserId)) } returns mockPostsQuery
+        every { mockPostsQuery.orderBy("createdAt", Query.Direction.DESCENDING) } returns mockPostsQuery
+        every { mockPostsQuery.limit(any()) } returns mockPostsQuery
+        every { mockPostsQuery.get() } returns mockPostsTask
+
+        every { mockPostDoc.id } returns "post_followed"
+        every { mockPostDoc.getString("caption") } returns "Followed post"
+        every { mockPostDoc.getString("ownerUserId") } returns followedUserId
+        every { mockPostDoc.getString("photoUrl") } returns "url"
+        every { mockPostDoc.getTimestamp("createdAt") } returns Timestamp.now()
+
+        every { mockPostsQuerySnapshot.documents } returns listOf(mockPostDoc)
+
+        every { mockPostsTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockPostsQuerySnapshot)
+            mockPostsTask
+        }
+        every { mockPostsTask.addOnFailureListener(any()) } returns mockPostsTask
+
+        var postsCaptured: List<Post>? = null
+
+        repository.getFeedPosts(currentUserId, limit = 50) { result ->
+            postsCaptured = result.getOrNull()
+        }
+
+        assertNotNull(postsCaptured)
+        assertEquals(1, postsCaptured!!.size)
+        assertEquals(followedUserId, postsCaptured!![0].ownerUserId)
+        verify(exactly = 0) { mockPostsCollection.whereIn("ownerUserId", listOf(currentUserId)) }
+    }
 }

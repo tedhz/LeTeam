@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -32,6 +33,7 @@ import com.leteam.locked.ui.screens.profile.ProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
 import com.leteam.locked.ui.screens.insights.InsightsScreen
 import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
+import com.leteam.locked.ui.screens.search.SearchScreen
 import com.leteam.locked.ui.screens.workouts.WorkoutsFeedScreen
 
 private data class NavItem(
@@ -49,6 +51,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
     val showBottomBar = currentDestination?.route in listOf(
         Routes.HOME,
         Routes.WORKOUTS,
+        Routes.SEARCH,
         Routes.PROFILE,
         Routes.SETTINGS
     )
@@ -56,6 +59,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
     val items = listOf(
         NavItem(Routes.HOME, "Home", Icons.Default.Home),
         NavItem(Routes.WORKOUTS, "Workouts", Icons.Default.FitnessCenter),
+        NavItem(Routes.SEARCH, "Search", Icons.Default.Search),
         NavItem(Routes.PROFILE, "Profile", Icons.Default.Person),
         NavItem(Routes.SETTINGS, "Settings", Icons.Default.Settings)
     )
@@ -102,7 +106,22 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 )
             }
 
+            composable(Routes.SEARCH) {
+                SearchScreen(onUserClick = { userId ->
+                    navController.navigate(Routes.profileUser(userId))
+                })
+            }
+
             composable(Routes.PROFILE) { ProfileScreen() }
+
+            composable(
+                route = Routes.PROFILE_USER,
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+                ProfileScreen(profileUserId = userId)
+            }
+
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onSignedOut = onSignedOut

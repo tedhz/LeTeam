@@ -2,11 +2,13 @@ package com.leteam.locked.users
 
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 
 class UserRepository(
     private val db: FirebaseFirestore
 ) {
-    private fun userDoc(userId: String) = db.collection("users").document(userId)
+    private fun usersCollection() = db.collection("users")
+    private fun userDoc(userId: String) = usersCollection().document(userId)
 
     fun createUserProfile(
         userId: String,
@@ -27,6 +29,48 @@ class UserRepository(
 
         userDoc(userId).set(payload)
             .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun searchUsersByDisplayName(
+        prefix: String,
+        limit: Long = 20,
+        onResult: (Result<List<User>>) -> Unit
+    ) {
+        if (prefix.isBlank()) {
+            onResult(Result.success(emptyList()))
+            return
+        }
+        val end = prefix + "\uf8ff"
+        usersCollection()
+            .orderBy("displayName", Query.Direction.ASCENDING)
+            .startAt(prefix)
+            .endAt(end)
+            .limit(limit)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                val users = snapshot.documents.mapNotNull { doc ->
+                    val uid = doc.id
+                    val displayName = doc.getString("displayName") ?: ""
+                    val fullName = doc.getString("fullName") ?: ""
+                    val email = doc.getString("email") ?: ""
+                    val dpsMap = doc.get("dailyPostStatus") as? Map<*, *>
+                    val hasPostedToday = dpsMap?.get("hasPostedToday") as? Boolean ?: false
+                    val postId = dpsMap?.get("postId") as? String
+                    val prefsMap = doc.get("notificationPrefs") as? Map<*, *>
+                    val enabled = prefsMap?.get("enabled") as? Boolean ?: true
+                    User(
+                        userId = uid,
+                        fullName = fullName,
+                        displayName = displayName,
+                        email = email,
+                        dailyPostStatus = User.DailyPostStatus(hasPostedToday, postId),
+                        notificationPrefs = User.NotificationPrefs(enabled),
+                        createdAt = doc.getTimestamp("createdAt")
+                    )
+                }
+                onResult(Result.success(users))
+            }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
 

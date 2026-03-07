@@ -1,8 +1,7 @@
-package com.leteam.locked
+package com.leteam.locked.ui.screens.workouts
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
-import com.leteam.locked.ui.screens.workouts.WorkoutsFeedViewModel
 import com.leteam.locked.workout.Exercise
 import com.leteam.locked.workout.Workout
 import com.leteam.locked.workout.WorkoutRepository

@@ -33,6 +33,7 @@ import java.util.Locale
 @Composable
 fun WorkoutsFeedScreen(
     onWorkoutOpen: () -> Unit,
+    onInsightsClick: () -> Unit = {},
     viewModel: WorkoutsFeedViewModel = viewModel(factory = WorkoutsFeedViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -69,6 +70,27 @@ fun WorkoutsFeedScreen(
                             )
                             Text(
                                 text = "Create / view your own workouts",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    ElevatedCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onInsightsClick,
+                        colors = CardDefaults.elevatedCardColors()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = "Insights",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "View progress and PRs over time",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

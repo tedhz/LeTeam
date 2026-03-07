@@ -14,9 +14,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
@@ -40,47 +47,18 @@ import java.text.SimpleDateFormat
 import java.util.Locale
 
 @Composable
-fun InsightsScreen(
-    viewModel: InsightsViewModel = viewModel()
-) {
-    val state by viewModel.uiState.collectAsState()
-
-    // No entrypoint yet
-    LaunchedEffect(Unit) {
-        viewModel.load()
-    }
-
-    Surface {
-        Crossfade(targetState = state, label = "insights") { uiState ->
-            when (uiState) {
-                is InsightsUiState.Loading -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(240.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                }
-
-                is InsightsUiState.Empty -> {
-                    CenterMessage(message = uiState.message)
-                }
-
-                is InsightsUiState.Error -> {
-                    CenterMessage(message = uiState.message)
-                }
-
-                is InsightsUiState.Loaded -> {
-                    InsightsContent(
-                        uiState = uiState,
-                        onExerciseSelected = viewModel::setExercise,
-                        onRangeSelected = viewModel::setRange
-                    )
-                }
-            }
-        }
+private fun CenterMessage(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(240.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
@@ -217,6 +195,65 @@ private fun InsightsContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InsightsScreen(
+    onBackClick: () -> Unit = {},
+    viewModel: InsightsViewModel = viewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.load()
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Insights") },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Surface(modifier = Modifier.padding(paddingValues)) {
+            Crossfade(targetState = state, label = "insights") { uiState ->
+                when (uiState) {
+                    is InsightsUiState.Loading -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(240.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    is InsightsUiState.Empty -> {
+                        CenterMessage(message = uiState.message)
+                    }
+
+                    is InsightsUiState.Error -> {
+                        CenterMessage(message = uiState.message)
+                    }
+
+                    is InsightsUiState.Loaded -> {
+                        InsightsContent(
+                            uiState = uiState,
+                            onExerciseSelected = viewModel::setExercise,
+                            onRangeSelected = viewModel::setRange
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun HighlightCard(
     title: String,
@@ -319,21 +356,5 @@ private fun RangeDropdown(
                 )
             }
         }
-    }
-}
-
-@Composable
-private fun CenterMessage(message: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(240.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }

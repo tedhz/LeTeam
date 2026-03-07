@@ -30,6 +30,7 @@ import com.leteam.locked.ui.screens.camera.PostingScreen
 import com.leteam.locked.ui.screens.home.HomeScreen
 import com.leteam.locked.ui.screens.profile.ProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
+import com.leteam.locked.ui.screens.insights.InsightsScreen
 import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
 import com.leteam.locked.ui.screens.workouts.WorkoutsFeedScreen
 
@@ -94,9 +95,12 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 )
             }
 
-            composable(Routes.WORKOUTS) { WorkoutsFeedScreen(
-                onWorkoutOpen = {navController.navigate(Routes.MYWORKOUTS)}
-            ) }
+            composable(Routes.WORKOUTS) {
+                WorkoutsFeedScreen(
+                    onWorkoutOpen = { navController.navigate(Routes.MYWORKOUTS) },
+                    onInsightsClick = { navController.navigate(Routes.INSIGHTS) }
+                )
+            }
 
             composable(Routes.PROFILE) { ProfileScreen() }
             composable(Routes.SETTINGS) {
@@ -115,6 +119,12 @@ fun MainScreen(onSignedOut: () -> Unit) {
             }
             composable(Routes.MYWORKOUTS) {
                 MyWorkoutsScreen(
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable(Routes.INSIGHTS) {
+                InsightsScreen(
                     onBackClick = { navController.popBackStack() }
                 )
             }

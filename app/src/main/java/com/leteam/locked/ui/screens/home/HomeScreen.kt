@@ -1,5 +1,6 @@
 package com.leteam.locked.ui.screens.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -54,7 +55,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = viewModel(),
-    onPostClick: () -> Unit
+    onPostClick: () -> Unit,
+    onUserClick: (String) -> Unit = {}
 ) {
     val currentUser by viewModel.currentUser.collectAsState()
     val feedPosts by viewModel.feedPosts.collectAsState()
@@ -126,7 +128,8 @@ fun HomeScreen(
                     FeedPostCard(
                         postWithUser = postWithUser,
                         isBlurred = !hasPostedToday,
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onUserClick = onUserClick
                     )
                 }
             }
@@ -196,7 +199,8 @@ private fun TodaysWorkoutCheckInCard(onPostClick: () -> Unit) {
 private fun FeedPostCard(
     postWithUser: PostWithUser,
     isBlurred: Boolean,
-    viewModel: HomeViewModel
+    viewModel: HomeViewModel,
+    onUserClick: (String) -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -208,10 +212,11 @@ private fun FeedPostCard(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Header with profile picture, name, and username
+            // Header with profile picture, name, and username (tappable to open profile)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable { onUserClick(postWithUser.post.ownerUserId) }
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)

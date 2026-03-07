@@ -3,6 +3,7 @@ package com.leteam.locked.ui.screens.profile
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,20 +13,26 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import coil.compose.AsyncImage
 import com.leteam.locked.posts.Post
+import com.leteam.locked.users.User
 import com.leteam.locked.workout.Workout
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,10 +57,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    // Pass a userId to view another user; null shows the current user's profile.
     profileUserId: String? = null,
+    onUserClick: (String) -> Unit = {},
     viewModel: ProfileViewModel = viewModel()
 ) {
     val user by viewModel.user.collectAsState()
@@ -64,13 +73,18 @@ fun ProfileScreen(
     val followError by viewModel.followError.collectAsState()
     val recentPosts by viewModel.recentPosts.collectAsState()
     val recentWorkouts by viewModel.recentWorkouts.collectAsState()
+    val followerUsers by viewModel.followerUsers.collectAsState()
+    val followingUsers by viewModel.followingUsers.collectAsState()
+    val followListLoading by viewModel.followListLoading.collectAsState()
+
+    var showFollowList by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(profileUserId, viewModel.currentUserId) {
         viewModel.loadProfile(profileUserId)
     }
 
     val scrollState = rememberScrollState()
-    var showEditDialog = remember { mutableStateOf(false) }
+    var showEditDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -135,7 +149,7 @@ fun ProfileScreen(
         when {
             isFollowing == null -> {
                 OutlinedButton(
-                    onClick = { showEditDialog.value = true },
+                    onClick = { showEditDialog = true },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium
                 ) {
@@ -184,8 +198,22 @@ fun ProfileScreen(
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             StatItem(count = postCount, label = "Workouts")
-            StatItem(count = followerCount, label = "Followers")
-            StatItem(count = followingCount, label = "Following")
+            StatItem(
+                count = followerCount,
+                label = "Followers",
+                onClick = {
+                    viewModel.loadFollowerUsers(u.userId)
+                    showFollowList = "followers"
+                }
+            )
+            StatItem(
+                count = followingCount,
+                label = "Following",
+                onClick = {
+                    viewModel.loadFollowingUsers(u.userId)
+                    showFollowList = "following"
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(28.dp))
@@ -258,17 +286,60 @@ fun ProfileScreen(
         Spacer(modifier = Modifier.height(24.dp))
     }
 
-    if (showEditDialog.value) {
+    if (showEditDialog) {
         AlertDialog(
-            onDismissRequest = { showEditDialog.value = false },
+            onDismissRequest = { showEditDialog = false },
             confirmButton = {
-                TextButton(onClick = { showEditDialog.value = false }) {
+                TextButton(onClick = { showEditDialog = false }) {
                     Text("OK")
                 }
             },
             title = { Text("Edit profile") },
             text = { Text("Profile editing will live here soon.") }
         )
+    }
+
+    if (showFollowList != null) {
+        val title = if (showFollowList == "followers") "Followers" else "Following"
+        val users = if (showFollowList == "followers") followerUsers else followingUsers
+        ModalBottomSheet(
+            onDismissRequest = { showFollowList = null }
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                if (followListLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    LazyColumn(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.heightIn(max = 400.dp)
+                    ) {
+                        items(users, key = { it.userId }) { user ->
+                            FollowListUserRow(
+                                user = user,
+                                onClick = {
+                                    onUserClick(user.userId)
+                                    showFollowList = null
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
     }
 }
 
@@ -333,21 +404,82 @@ private fun WorkoutHistoryItem(workout: Workout) {
 @Composable
 private fun StatItem(
     count: Int,
+    label: String,
+    onClick: (() -> Unit)? = null
+) {
+    val columnContent = @Composable {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = count.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+    if (onClick != null) {
+        Box(modifier = Modifier.clickable(onClick = onClick)) { columnContent() }
+    } else {
+        columnContent()
+    }
+}
+
+@Composable
+private fun FollowListUserRow(
+    user: User,
+    onClick: () -> Unit
+) {
+    val handle = if (user.displayName.isNotBlank()) "@${user.displayName}" else user.email
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Column(modifier = Modifier.padding(start = 12.dp)) {
+            Text(
+                text = user.fullName.ifBlank { "User" },
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (handle.isNotBlank()) {
+                Text(
+                    text = handle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(
+    count: Int,
     label: String
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = count.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
+    StatItem(count = count, label = label, onClick = null)
 }
 
 @Composable

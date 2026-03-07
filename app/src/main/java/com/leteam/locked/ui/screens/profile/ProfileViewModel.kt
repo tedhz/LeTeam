@@ -52,6 +52,15 @@ class ProfileViewModel(
     private val _recentWorkouts = MutableStateFlow<List<Workout>>(emptyList())
     val recentWorkouts: StateFlow<List<Workout>> = _recentWorkouts.asStateFlow()
 
+    private val _followerUsers = MutableStateFlow<List<User>>(emptyList())
+    val followerUsers: StateFlow<List<User>> = _followerUsers.asStateFlow()
+
+    private val _followingUsers = MutableStateFlow<List<User>>(emptyList())
+    val followingUsers: StateFlow<List<User>> = _followingUsers.asStateFlow()
+
+    private val _followListLoading = MutableStateFlow(false)
+    val followListLoading: StateFlow<Boolean> = _followListLoading.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -147,5 +156,59 @@ class ProfileViewModel(
 
     fun clearFollowError() {
         _followError.value = null
+    }
+
+    fun loadFollowerUsers(profileUserId: String) {
+        _followListLoading.value = true
+        _followerUsers.value = emptyList()
+        followRepository.getFollowerIds(profileUserId) { result ->
+            result.onSuccess { ids ->
+                if (ids.isEmpty()) {
+                    _followerUsers.value = emptyList()
+                    _followListLoading.value = false
+                    return@onSuccess
+                }
+                val list = mutableListOf<User>()
+                var remaining = ids.size
+                ids.forEach { id ->
+                    userRepository.getUser(id) { userResult ->
+                        userResult.onSuccess { list.add(it) }
+                        remaining--
+                        if (remaining == 0) {
+                            _followerUsers.value = list
+                            _followListLoading.value = false
+                        }
+                    }
+                }
+            }
+            result.onFailure { _followListLoading.value = false }
+        }
+    }
+
+    fun loadFollowingUsers(profileUserId: String) {
+        _followListLoading.value = true
+        _followingUsers.value = emptyList()
+        followRepository.getFollowingIds(profileUserId) { result ->
+            result.onSuccess { ids ->
+                if (ids.isEmpty()) {
+                    _followingUsers.value = emptyList()
+                    _followListLoading.value = false
+                    return@onSuccess
+                }
+                val list = mutableListOf<User>()
+                var remaining = ids.size
+                ids.forEach { id ->
+                    userRepository.getUser(id) { userResult ->
+                        userResult.onSuccess { list.add(it) }
+                        remaining--
+                        if (remaining == 0) {
+                            _followingUsers.value = list
+                            _followListLoading.value = false
+                        }
+                    }
+                }
+            }
+            result.onFailure { _followListLoading.value = false }
+        }
     }
 }

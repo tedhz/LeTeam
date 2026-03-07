@@ -95,7 +95,8 @@ fun MainScreen(onSignedOut: () -> Unit) {
         ) {
             composable(Routes.HOME) {
                 HomeScreen(
-                    onPostClick = { navController.navigate(Routes.CAMERA) }
+                    onPostClick = { navController.navigate(Routes.CAMERA) },
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) }
                 )
             }
 
@@ -112,14 +113,19 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 })
             }
 
-            composable(Routes.PROFILE) { ProfileScreen() }
+            composable(Routes.PROFILE) {
+                ProfileScreen(onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) })
+            }
 
             composable(
                 route = Routes.PROFILE_USER,
                 arguments = listOf(navArgument("userId") { type = NavType.StringType })
             ) { backStackEntry ->
                 val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
-                ProfileScreen(profileUserId = userId)
+                ProfileScreen(
+                    profileUserId = userId,
+                    onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) }
+                )
             }
 
             composable(Routes.SETTINGS) {

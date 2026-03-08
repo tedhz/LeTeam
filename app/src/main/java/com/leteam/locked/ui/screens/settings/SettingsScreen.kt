@@ -18,7 +18,8 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
-    onSignedOut: () -> Unit
+    onSignedOut: () -> Unit,
+    onResetPasswordClick: () -> Unit,
 ) {
     val notificationsEnabled by viewModel.notificationsEnabled.collectAsState()
     val reminderHour by viewModel.reminderHour.collectAsState()
@@ -89,6 +90,13 @@ fun SettingsScreen(
                     val displayMinute = String.format(Locale.getDefault(), "%02d", reminderMinute)
                     Text("$displayHour:$displayMinute $amPm")
                 }
+            }
+
+            OutlinedButton(
+                onClick = onResetPasswordClick,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Reset Password")
             }
 
             Spacer(modifier = Modifier.weight(1f))

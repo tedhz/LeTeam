@@ -14,6 +14,7 @@ object Routes {
     const val MYWORKOUTS = "myworkouts"
     const val INSIGHTS = "insights"
     const val SIGNIN = "signin"
+    const val PASSRESET = "passreset"
 
     fun profileUser(userId: String): String = "profile/$userId"
 

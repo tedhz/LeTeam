@@ -35,6 +35,7 @@ import com.leteam.locked.ui.screens.insights.InsightsScreen
 import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
 import com.leteam.locked.ui.screens.search.SearchScreen
 import com.leteam.locked.ui.screens.workouts.WorkoutsFeedScreen
+import com.leteam.locked.ui.screens.settings.PasswordResetScreen
 
 private data class NavItem(
     val route: String,
@@ -130,10 +131,16 @@ fun MainScreen(onSignedOut: () -> Unit) {
 
             composable(Routes.SETTINGS) {
                 SettingsScreen(
-                    onSignedOut = onSignedOut
+                    onSignedOut = onSignedOut,
+                    onResetPasswordClick= { navController.navigate(Routes.PASSRESET)
+                    }
                 )
             }
-
+            composable(Routes.PASSRESET){
+                PasswordResetScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable(Routes.CAMERA) {
                 CameraScreen(
                     onBackClick = { navController.popBackStack() },

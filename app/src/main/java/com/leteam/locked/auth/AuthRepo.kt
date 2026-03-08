@@ -54,6 +54,19 @@ class AuthRepo(
             }
     }
 
+    fun sendPasswordResetEmail(
+        email: String,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        auth.sendPasswordResetEmail(email)
+            .addOnSuccessListener {
+                onResult(Result.success(Unit))
+            }
+            .addOnFailureListener { exception ->
+                onResult(Result.failure(exception))
+            }
+    }
+
     fun signOut() {
         auth.signOut()
     }

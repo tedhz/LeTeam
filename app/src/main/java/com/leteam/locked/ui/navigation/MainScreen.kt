@@ -1,6 +1,7 @@
 package com.leteam.locked.ui.navigation
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -8,15 +9,20 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -66,24 +72,44 @@ fun MainScreen(onSignedOut: () -> Unit) {
     )
 
     Scaffold(
+        containerColor = Color.White,
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
-                    items.forEach { item ->
-                        NavigationBarItem(
-                            icon = { Icon(item.icon, contentDescription = item.label) },
-                            label = { Text(item.label) },
-                            selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
-                            onClick = {
-                                navController.navigate(item.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
+                Column {
+                    HorizontalDivider(color = Color(0xFFE0E0E0), thickness = 1.dp)
+
+                    NavigationBar(
+                        containerColor = Color.White,
+                        tonalElevation = 0.dp
+                    ) {
+                        items.forEach { item ->
+                            NavigationBarItem(
+                                icon = { Icon(item.icon, contentDescription = item.label) },
+                                label = {
+                                    Text(
+                                        text = item.label,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                },
+                                selected = currentDestination?.hierarchy?.any { it.route == item.route } == true,
+                                onClick = {
+                                    navController.navigate(item.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
                                     }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = Color.Black,
+                                    selectedTextColor = Color.Black,
+                                    indicatorColor = Color.White,
+                                    unselectedIconColor = Color.DarkGray,
+                                    unselectedTextColor = Color.DarkGray
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -105,7 +131,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 WorkoutsFeedScreen(
                     onWorkoutOpen = { navController.navigate(Routes.MYWORKOUTS) },
                     onInsightsClick = { navController.navigate(Routes.INSIGHTS) },
-                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) } // Wired up the new callback here
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) }
                 )
             }
 

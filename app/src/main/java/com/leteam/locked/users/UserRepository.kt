@@ -168,4 +168,27 @@ class UserRepository(
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
+
+    fun isDisplayNameTaken(
+        displayName: String,
+        onResult: (Result<Boolean>) -> Unit
+    ) {
+        val normalized = displayName.trim()
+
+        if (normalized.isBlank()) {
+            onResult(Result.success(false))
+            return
+        }
+
+        usersCollection()
+            .whereEqualTo("displayName", normalized)
+            .limit(1)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                onResult(Result.success(!snapshot.isEmpty))
+            }
+            .addOnFailureListener { e ->
+                onResult(Result.failure(e))
+            }
+    }
 }

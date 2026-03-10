@@ -104,7 +104,8 @@ fun MainScreen(onSignedOut: () -> Unit) {
             composable(Routes.WORKOUTS) {
                 WorkoutsFeedScreen(
                     onWorkoutOpen = { navController.navigate(Routes.MYWORKOUTS) },
-                    onInsightsClick = { navController.navigate(Routes.INSIGHTS) }
+                    onInsightsClick = { navController.navigate(Routes.INSIGHTS) },
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) } // Wired up the new callback here
                 )
             }
 
@@ -132,8 +133,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
             composable(Routes.SETTINGS) {
                 SettingsScreen(
                     onSignedOut = onSignedOut,
-                    onResetPasswordClick= { navController.navigate(Routes.PASSRESET)
-                    }
+                    onResetPasswordClick= { navController.navigate(Routes.PASSRESET) }
                 )
             }
             composable(Routes.PASSRESET){

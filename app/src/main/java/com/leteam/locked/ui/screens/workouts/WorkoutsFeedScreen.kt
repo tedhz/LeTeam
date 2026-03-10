@@ -1,16 +1,33 @@
 package com.leteam.locked.ui.screens.workouts
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Surface
@@ -21,7 +38,10 @@ import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -34,12 +54,13 @@ import java.util.Locale
 fun WorkoutsFeedScreen(
     onWorkoutOpen: () -> Unit,
     onInsightsClick: () -> Unit = {},
+    onUserClick: (String) -> Unit, // Added callback for clicking a user profile
     viewModel: WorkoutsFeedViewModel = viewModel(factory = WorkoutsFeedViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pullState = rememberPullToRefreshState()
 
-    Surface(modifier = Modifier.fillMaxSize()) {
+    Surface(modifier = Modifier.fillMaxSize(), color = Color.White) {
         PullToRefreshBox(
             isRefreshing = uiState.isLoading,
             onRefresh = { viewModel.refresh() },
@@ -47,53 +68,50 @@ fun WorkoutsFeedScreen(
             indicator = {
                 PullToRefreshDefaults.Indicator(
                     isRefreshing = uiState.isLoading,
-                    state = pullState
+                    state = pullState,
+                    color = Color.Black
                 )
             }
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Header Actions: Black buttons, white text/icons
                 item {
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onWorkoutOpen,
-                        colors = CardDefaults.elevatedCardColors()
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "My Workouts",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold
+                        Button(
+                            onClick = onWorkoutOpen,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 16.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Black,
+                                contentColor = Color.White
                             )
-                            Text(
-                                text = "Create / view your own workouts",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("My Workouts", fontWeight = FontWeight.Bold)
                         }
-                    }
-                }
 
-                item {
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = onInsightsClick,
-                        colors = CardDefaults.elevatedCardColors()
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "Insights",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold
+                        Button(
+                            onClick = onInsightsClick,
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(vertical = 16.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Black,
+                                contentColor = Color.White
                             )
-                            Text(
-                                text = "View progress and PRs over time",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        ) {
+                            Icon(Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Insights", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -102,13 +120,17 @@ fun WorkoutsFeedScreen(
                     item {
                         Text(
                             text = msg,
-                            color = MaterialTheme.colorScheme.error
+                            color = Color.Black,
+                            modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
                 }
 
                 items(uiState.feedItems, key = { it.workout.id }) { item ->
-                    WorkoutFeedCard(item)
+                    WorkoutFeedCard(
+                        item = item,
+                        onUserClick = { onUserClick(item.workout.userId) } // Pass the userId when clicked
+                    )
                 }
             }
         }
@@ -116,50 +138,77 @@ fun WorkoutsFeedScreen(
 }
 
 @Composable
-private fun WorkoutFeedCard(item: WorkoutFeedItem) {
-    val df = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
+private fun WorkoutFeedCard(
+    item: WorkoutFeedItem,
+    onUserClick: () -> Unit
+) {
+    val df = SimpleDateFormat("MMM d, yyyy • h:mm a", Locale.getDefault())
     val workoutDate = df.format(item.workout.workoutDate)
 
     ElevatedCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.elevatedCardColors()
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = item.userDisplayName,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = workoutDate,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            // User Profile Row - Made Clickable
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp)) // Clips the ripple effect nicely
+                    .clickable(onClick = onUserClick)
+                    .padding(end = 8.dp, top = 4.dp, bottom = 4.dp) // Adds a comfortable touch target
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = "Profile Picture",
+                        tint = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = item.userDisplayName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                    Text(
+                        text = workoutDate,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.DarkGray
+                    )
+                }
             }
 
+            // Exercises Container
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.outlinedCardColors()
+                colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                shape = RoundedCornerShape(12.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text(
-                        text = "Exercises",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
                     if (item.exercises.isEmpty()) {
                         Text(
                             text = "No exercises logged.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color.DarkGray,
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
                         )
                     } else {
                         item.exercises.forEach { ex ->
@@ -174,18 +223,32 @@ private fun WorkoutFeedCard(item: WorkoutFeedItem) {
 
 @Composable
 private fun ExerciseRow(ex: Exercise) {
-    val detail = "${ex.numberOfSets} x ${ex.repsPerSet} @ ${trimWeight(ex.weightAmount)}"
+    val detail = "${ex.numberOfSets} sets × ${ex.repsPerSet} reps"
 
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = ex.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+            Text(
+                text = detail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.DarkGray
+            )
+        }
+
         Text(
-            text = ex.name,
-            style = MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = detail,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = "${trimWeight(ex.weightAmount)} lbs",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Black,
+            color = Color.Black
         )
     }
 }

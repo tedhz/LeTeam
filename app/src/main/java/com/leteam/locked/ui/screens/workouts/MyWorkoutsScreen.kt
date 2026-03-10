@@ -243,7 +243,7 @@ fun ExerciseItem(exercise: Exercise, onEdit: () -> Unit, onDelete: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp),
         colors = CardDefaults.outlinedCardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color.Black), // High contrast border for exercises
+        border = BorderStroke(1.dp, Color.Black),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

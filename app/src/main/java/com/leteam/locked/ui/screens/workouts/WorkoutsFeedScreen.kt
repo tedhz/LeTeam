@@ -54,7 +54,7 @@ import java.util.Locale
 fun WorkoutsFeedScreen(
     onWorkoutOpen: () -> Unit,
     onInsightsClick: () -> Unit = {},
-    onUserClick: (String) -> Unit, // Added callback for clicking a user profile
+    onUserClick: (String) -> Unit,
     viewModel: WorkoutsFeedViewModel = viewModel(factory = WorkoutsFeedViewModel.Factory)
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -78,7 +78,6 @@ fun WorkoutsFeedScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Header Actions: Black buttons, white text/icons
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -129,7 +128,7 @@ fun WorkoutsFeedScreen(
                 items(uiState.feedItems, key = { it.workout.id }) { item ->
                     WorkoutFeedCard(
                         item = item,
-                        onUserClick = { onUserClick(item.workout.userId) } // Pass the userId when clicked
+                        onUserClick = { onUserClick(item.workout.userId) }
                     )
                 }
             }
@@ -155,13 +154,12 @@ private fun WorkoutFeedCard(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // User Profile Row - Made Clickable
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp)) // Clips the ripple effect nicely
+                    .clip(RoundedCornerShape(8.dp))
                     .clickable(onClick = onUserClick)
-                    .padding(end = 8.dp, top = 4.dp, bottom = 4.dp) // Adds a comfortable touch target
+                    .padding(end = 8.dp, top = 4.dp, bottom = 4.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -192,7 +190,6 @@ private fun WorkoutFeedCard(
                 }
             }
 
-            // Exercises Container
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.outlinedCardColors(containerColor = Color.White),

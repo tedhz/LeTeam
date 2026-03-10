@@ -1,9 +1,9 @@
 package com.leteam.locked.ui.screens.home
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.leteam.locked.firebase.FirebaseProvider
+import com.leteam.locked.posts.Comment
 import com.leteam.locked.posts.Post
 import com.leteam.locked.posts.PostsRepository
 import com.leteam.locked.users.User
@@ -17,6 +17,12 @@ data class PostWithUser(
     val post: Post,
     val ownerFullName: String,
     val ownerDisplayName: String
+)
+
+data class CommentWithAuthor(
+    val comment: Comment,
+    val authorDisplayName: String,
+    val authorFullName: String
 )
 
 class HomeViewModel(
@@ -34,6 +40,15 @@ class HomeViewModel(
 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _commentsDrawerPostId = MutableStateFlow<String?>(null)
+    val commentsDrawerPostId: StateFlow<String?> = _commentsDrawerPostId.asStateFlow()
+
+    private val _comments = MutableStateFlow<List<CommentWithAuthor>>(emptyList())
+    val comments: StateFlow<List<CommentWithAuthor>> = _comments.asStateFlow()
+
+    private val _commentsLoading = MutableStateFlow(false)
+    val commentsLoading: StateFlow<Boolean> = _commentsLoading.asStateFlow()
 
     val currentUserId: String?
         get() = auth.currentUser?.uid
@@ -160,6 +175,79 @@ class HomeViewModel(
             val updatedPost = postWithUser.post.copy(likes = updatedLikes)
             currentPosts[index] = postWithUser.copy(post = updatedPost)
             _feedPosts.value = currentPosts
+        }
+    }
+
+    fun openCommentsDrawer(postId: String) {
+        _commentsDrawerPostId.value = postId
+        loadComments(postId)
+    }
+
+    fun closeCommentsDrawer() {
+        _commentsDrawerPostId.value = null
+        _comments.value = emptyList()
+    }
+
+    fun loadComments(postId: String) {
+        _commentsLoading.value = true
+        _comments.value = emptyList()
+
+        postsRepository.getComments(postId) { result ->
+            result.onSuccess { comments ->
+                if (comments.isEmpty()) {
+                    _comments.value = emptyList()
+                    _commentsLoading.value = false
+                    return@getComments
+                }
+                val uniqueAuthorIds = comments.map { it.authorUserId }.distinct()
+                val authorMap = mutableMapOf<String, Pair<String, String>>()
+                var completed = 0
+                val total = uniqueAuthorIds.size
+
+                uniqueAuthorIds.forEach { authorId ->
+                    userRepository.getUser(authorId) { userResult ->
+                        userResult.onSuccess { user ->
+                            authorMap[authorId] = Pair(
+                                if (user.displayName.isNotBlank()) user.displayName else user.fullName.ifBlank { "User" },
+                                user.fullName.ifBlank { "User" }
+                            )
+                        }
+                        userResult.onFailure {
+                            authorMap[authorId] = Pair("User", "User")
+                        }
+                        completed++
+                        if (completed == total) {
+                            _comments.value = comments.map { comment ->
+                                val (displayName, fullName) = authorMap[comment.authorUserId] ?: Pair("User", "User")
+                                CommentWithAuthor(
+                                    comment = comment,
+                                    authorDisplayName = displayName,
+                                    authorFullName = fullName
+                                )
+                            }
+                            _commentsLoading.value = false
+                        }
+                    }
+                }
+            }
+            result.onFailure {
+                _comments.value = emptyList()
+                _commentsLoading.value = false
+            }
+        }
+    }
+
+    fun addComment(postId: String, text: String, onDone: () -> Unit = {}) {
+        val userId = currentUserId ?: return
+        if (text.isBlank()) return
+
+        viewModelScope.launch {
+            postsRepository.addComment(postId, userId, text.trim()) { result ->
+                result.onSuccess {
+                    loadComments(postId)
+                    onDone()
+                }
+            }
         }
     }
 }

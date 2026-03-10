@@ -203,23 +203,7 @@ fun SignUpScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            Text(
-                text = buildAnnotatedString {
-                    append("By clicking continue, you agree to our ")
-                    withStyle(style = SpanStyle(color = Color.Black, fontWeight = FontWeight.Medium)) {
-                        append("Terms of Service")
-                    }
-                    append("\nand ")
-                    withStyle(style = SpanStyle(color = Color.Black, fontWeight = FontWeight.Medium)) {
-                        append("Privacy Policy")
-                    }
-                },
-                style = MaterialTheme.typography.bodyMedium.copy(
-                    color = Color(0xFF8A8A8A),
-                    lineHeight = 24.sp
-                ),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+
         }
     }
 }

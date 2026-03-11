@@ -139,7 +139,7 @@ class PostsRepository(
         followsCollection(userId).get()
             .addOnSuccessListener { followsSnap ->
                 val followedIds = followsSnap.documents.map { it.id }.toMutableList()
-
+                followedIds.add(userId) // include current user's own posts in the feed
                 val chunks = followedIds.distinct().chunked(10)
                 if (chunks.isEmpty()) {
                     onResult(Result.success(emptyList()))

@@ -476,7 +476,7 @@ class PostsRepositoryTest {
     }
 
     @Test
-    fun `getFeedPosts excludes current user's own posts`() {
+    fun `getFeedPosts includes current user's own posts and followed users' posts`() {
         val currentUserId = "user_current"
         val followedUserId = "user_followed"
         val mockFollowsCollection: CollectionReference = mockk()
@@ -500,7 +500,8 @@ class PostsRepositoryTest {
         }
         every { mockFollowsTask.addOnFailureListener(any()) } returns mockFollowsTask
 
-        every { mockPostsCollection.whereIn("ownerUserId", listOf(followedUserId)) } returns mockPostsQuery
+        val whereInSlot = slot<List<String>>()
+        every { mockPostsCollection.whereIn("ownerUserId", capture(whereInSlot)) } returns mockPostsQuery
         every { mockPostsQuery.orderBy("createdAt", Query.Direction.DESCENDING) } returns mockPostsQuery
         every { mockPostsQuery.limit(any()) } returns mockPostsQuery
         every { mockPostsQuery.get() } returns mockPostsTask
@@ -530,6 +531,63 @@ class PostsRepositoryTest {
         assertNotNull(postsCaptured)
         assertEquals(1, postsCaptured!!.size)
         assertEquals(followedUserId, postsCaptured!![0].ownerUserId)
-        verify(exactly = 0) { mockPostsCollection.whereIn("ownerUserId", listOf(currentUserId)) }
+        // Feed must query for both followed users and the current user's own posts
+        assertTrue(whereInSlot.captured.contains(followedUserId))
+        assertTrue(whereInSlot.captured.contains(currentUserId))
+        assertEquals(2, whereInSlot.captured.size)
+    }
+
+    @Test
+    fun `getFeedPosts returns current user's posts when they follow no one`() {
+        val currentUserId = "user_solo"
+        val mockFollowsCollection: CollectionReference = mockk()
+        val mockFollowsQuery: QuerySnapshot = mockk()
+        val mockPostsQuery: Query = mockk()
+        val mockPostsQuerySnapshot: QuerySnapshot = mockk()
+        val mockPostDoc: QueryDocumentSnapshot = mockk()
+        val mockFollowsTask: Task<QuerySnapshot> = mockk()
+        val mockPostsTask: Task<QuerySnapshot> = mockk()
+
+        every { mockUsersCollection.document(currentUserId).collection("follows") } returns mockFollowsCollection
+        every { mockFollowsCollection.get() } returns mockFollowsTask
+        every { mockFollowsQuery.documents } returns emptyList()
+        every { mockFollowsTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockFollowsQuery)
+            mockFollowsTask
+        }
+        every { mockFollowsTask.addOnFailureListener(any()) } returns mockFollowsTask
+
+        every { mockPostsCollection.whereIn("ownerUserId", listOf(currentUserId)) } returns mockPostsQuery
+        every { mockPostsQuery.orderBy("createdAt", Query.Direction.DESCENDING) } returns mockPostsQuery
+        every { mockPostsQuery.limit(any()) } returns mockPostsQuery
+        every { mockPostsQuery.get() } returns mockPostsTask
+
+        every { mockPostDoc.id } returns "post_own"
+        every { mockPostDoc.getString("caption") } returns "My post"
+        every { mockPostDoc.getString("ownerUserId") } returns currentUserId
+        every { mockPostDoc.getString("photoUrl") } returns "https://my-photo"
+        every { mockPostDoc.getTimestamp("createdAt") } returns Timestamp.now()
+        every { mockPostDoc.get("likes") } returns emptyList<String>()
+
+        every { mockPostsQuerySnapshot.documents } returns listOf(mockPostDoc)
+
+        every { mockPostsTask.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockPostsQuerySnapshot)
+            mockPostsTask
+        }
+        every { mockPostsTask.addOnFailureListener(any()) } returns mockPostsTask
+
+        var postsCaptured: List<Post>? = null
+
+        repository.getFeedPosts(currentUserId, limit = 50) { result ->
+            postsCaptured = result.getOrNull()
+        }
+
+        assertNotNull(postsCaptured)
+        assertEquals(1, postsCaptured!!.size)
+        assertEquals(currentUserId, postsCaptured!![0].ownerUserId)
+        assertEquals("My post", postsCaptured!![0].caption)
     }
 }

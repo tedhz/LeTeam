@@ -3,6 +3,7 @@ package com.leteam.locked.ui.screens.home
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.leteam.locked.firebase.FirebaseProvider
+import com.leteam.locked.posts.Comment
 import com.leteam.locked.posts.Post
 import com.leteam.locked.posts.PostsRepository
 import com.leteam.locked.users.User
@@ -82,6 +83,12 @@ class HomeViewModelTest {
         assertFalse(viewModel.isLoading.value)
     }
 
+    private fun stubGetCommentCount(count: Int = 0) {
+        every { mockPostsRepo.getCommentCount(any(), any()) } answers {
+            lastArg<(Result<Int>) -> Unit>().invoke(Result.success(count))
+        }
+    }
+
     @Test
     fun `loadHomeData loads feed posts with user info`() = runTest {
         val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
@@ -103,6 +110,7 @@ class HomeViewModelTest {
         every { mockUserRepo.getUser(followedUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(followedUser))
         }
+        stubGetCommentCount(0)
 
         viewModel.loadHomeData()
         advanceUntilIdle()
@@ -112,7 +120,34 @@ class HomeViewModelTest {
         assertEquals(post, feedPosts[0].post)
         assertEquals("Followed", feedPosts[0].ownerFullName)
         assertEquals("@followed", feedPosts[0].ownerDisplayName)
+        assertEquals(0, feedPosts[0].commentCount)
         assertFalse(viewModel.isLoading.value)
+    }
+
+    @Test
+    fun `loadHomeData requests getCommentCount and updates commentCount`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val followedUser = User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")
+        val post = Post(id = "post1", caption = "Test", ownerUserId = followedUserId, photoUrl = "url", createdAt = Date())
+
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(followedUser))
+        }
+        stubGetCommentCount(3)
+
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        val feedPosts = viewModel.feedPosts.value
+        assertEquals(1, feedPosts.size)
+        assertEquals(3, feedPosts[0].commentCount)
+        verify { mockPostsRepo.getCommentCount("post1", any()) }
     }
 
     @Test
@@ -154,6 +189,7 @@ class HomeViewModelTest {
         every { mockUserRepo.getUser(otherUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(followedUser2))
         }
+        stubGetCommentCount(0)
 
         viewModel.loadHomeData()
         advanceUntilIdle()
@@ -178,6 +214,7 @@ class HomeViewModelTest {
         every { mockUserRepo.getUser(followedUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.failure(Exception("User not found")))
         }
+        stubGetCommentCount(0)
 
         viewModel.loadHomeData()
         advanceUntilIdle()
@@ -271,6 +308,7 @@ class HomeViewModelTest {
         every { mockUserRepo.getUser(followedUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")))
         }
+        stubGetCommentCount(0)
 
         viewModel.loadHomeData()
         advanceUntilIdle()
@@ -353,6 +391,7 @@ class HomeViewModelTest {
         every { mockUserRepo.getUser(followedUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "Followed", displayName = "followed", email = "f@test.com")))
         }
+        stubGetCommentCount(0)
 
         viewModel.loadHomeData()
         advanceUntilIdle()
@@ -402,6 +441,159 @@ class HomeViewModelTest {
 
         verify(exactly = 0) { mockPostsRepo.likePost(any(), any(), any()) }
         verify(exactly = 0) { mockPostsRepo.unlikePost(any(), any(), any()) }
+    }
+
+    @Test
+    fun `openCommentsDrawer sets drawer post id and calls loadComments`() = runTest {
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+
+        viewModel.openCommentsDrawer("post1")
+        advanceUntilIdle()
+
+        assertEquals("post1", viewModel.commentsDrawerPostId.value)
+        assertTrue(viewModel.comments.value.isEmpty())
+        assertFalse(viewModel.commentsLoading.value)
+        verify { mockPostsRepo.getComments("post1", any()) }
+    }
+
+    @Test
+    fun `closeCommentsDrawer clears drawer state and comments`() = runTest {
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        viewModel.openCommentsDrawer("post1")
+        advanceUntilIdle()
+
+        viewModel.closeCommentsDrawer()
+
+        assertNull(viewModel.commentsDrawerPostId.value)
+        assertTrue(viewModel.comments.value.isEmpty())
+    }
+
+    @Test
+    fun `loadComments with empty list sets comments empty and updateCommentCount zero`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(id = "post1", ownerUserId = followedUserId, photoUrl = "url", createdAt = Date())
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        viewModel.openCommentsDrawer("post1")
+        advanceUntilIdle()
+
+        assertTrue(viewModel.comments.value.isEmpty())
+        assertEquals(0, viewModel.feedPosts.value.single { it.post.id == "post1" }.commentCount)
+    }
+
+    @Test
+    fun `loadComments with comments loads author info and sets CommentWithAuthor and updateCommentCount`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val authorUser = User(userId = "author1", fullName = "Author Name", displayName = "author", email = "a@test.com")
+        val post = Post(id = "post1", ownerUserId = followedUserId, photoUrl = "url", createdAt = Date())
+        val comment = Comment(id = "c1", postId = "post1", authorUserId = "author1", text = "Nice!", createdAt = Date())
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(listOf(comment)))
+        }
+        every { mockUserRepo.getUser("author1", any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(authorUser))
+        }
+        viewModel.openCommentsDrawer("post1")
+        advanceUntilIdle()
+
+        val comments = viewModel.comments.value
+        assertEquals(1, comments.size)
+        assertEquals("Nice!", comments[0].comment.text)
+        assertEquals("author", comments[0].authorDisplayName)
+        assertEquals("Author Name", comments[0].authorFullName)
+        assertEquals(1, viewModel.feedPosts.value.single { it.post.id == "post1" }.commentCount)
+    }
+
+    @Test
+    fun `updateCommentCount updates correct post commentCount`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(id = "post1", ownerUserId = followedUserId, photoUrl = "url", createdAt = Date())
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.updateCommentCount("post1", 5)
+
+        assertEquals(5, viewModel.feedPosts.value.single { it.post.id == "post1" }.commentCount)
+    }
+
+    @Test
+    fun `addComment does nothing when text is blank`() = runTest {
+        viewModel.addComment("post1", "")
+        advanceUntilIdle()
+        viewModel.addComment("post1", "   ")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { mockPostsRepo.addComment(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `addComment does nothing when no current user`() = runTest {
+        every { mockAuth.currentUser } returns null
+        val testViewModel = HomeViewModel(mockUserRepo, mockPostsRepo)
+
+        testViewModel.addComment("post1", "hello")
+        advanceUntilIdle()
+
+        verify(exactly = 0) { mockPostsRepo.addComment(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `addComment calls repository and then loadComments on success`() = runTest {
+        every { mockPostsRepo.addComment("post1", testUserId, "hello", any()) } answers {
+            lastArg<(Result<String>) -> Unit>().invoke(Result.success("comment_1"))
+        }
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+
+        var onDoneCalled = false
+        viewModel.addComment("post1", "hello") { onDoneCalled = true }
+        advanceUntilIdle()
+
+        verify { mockPostsRepo.addComment("post1", testUserId, "hello", any()) }
+        verify { mockPostsRepo.getComments("post1", any()) }
+        assertTrue(onDoneCalled)
     }
 }
 

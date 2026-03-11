@@ -41,7 +41,7 @@ class SetupProfileViewModelTest {
 
         var resultCaptured: Boolean? = null
 
-        viewModel.saveDisplayName("NewName") { success ->
+        viewModel.saveDisplayName("NewName") { success, _ ->
             resultCaptured = success
         }
 
@@ -53,7 +53,7 @@ class SetupProfileViewModelTest {
     fun `saveDisplayName returns false immediately if display name is blank`() {
         var resultCaptured: Boolean? = null
 
-        viewModel.saveDisplayName("   ") { success ->
+        viewModel.saveDisplayName("   ") { success, _ ->
             resultCaptured = success
         }
 
@@ -65,6 +65,9 @@ class SetupProfileViewModelTest {
     fun `saveDisplayName returns true when repository update succeeds`() {
         val testName = "ValidName"
 
+        every { mockUserRepo.isDisplayNameTaken(testName, any()) } answers {
+            lastArg<(Result<Boolean>) -> Unit>().invoke(Result.success(false))
+        }
         every { mockUserRepo.updateDisplayName(testUserId, testName, any()) } answers {
             val callback = lastArg<(Result<Unit>) -> Unit>()
             callback(Result.success(Unit))
@@ -72,7 +75,7 @@ class SetupProfileViewModelTest {
 
         var resultCaptured: Boolean? = null
 
-        viewModel.saveDisplayName(testName) { success ->
+        viewModel.saveDisplayName(testName) { success, _ ->
             resultCaptured = success
         }
 
@@ -84,6 +87,9 @@ class SetupProfileViewModelTest {
     fun `saveDisplayName returns false when repository update fails`() {
         val testName = "ValidName"
 
+        every { mockUserRepo.isDisplayNameTaken(testName, any()) } answers {
+            lastArg<(Result<Boolean>) -> Unit>().invoke(Result.success(false))
+        }
         every { mockUserRepo.updateDisplayName(testUserId, testName, any()) } answers {
             val callback = lastArg<(Result<Unit>) -> Unit>()
             callback(Result.failure(Exception("Firestore error")))
@@ -91,7 +97,7 @@ class SetupProfileViewModelTest {
 
         var resultCaptured: Boolean? = null
 
-        viewModel.saveDisplayName(testName) { success ->
+        viewModel.saveDisplayName(testName) { success, _ ->
             resultCaptured = success
         }
 

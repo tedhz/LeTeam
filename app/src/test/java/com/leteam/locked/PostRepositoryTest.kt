@@ -416,6 +416,66 @@ class PostsRepositoryTest {
     }
 
     @Test
+    fun `getCommentCount returns snapshot size on success`() {
+        every { mockCommentsCollection.get() } returns mockTaskQuery
+        every { mockQuerySnapshot.size() } returns 2
+        every { mockTaskQuery.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockQuerySnapshot)
+            mockTaskQuery
+        }
+        every { mockTaskQuery.addOnFailureListener(any()) } returns mockTaskQuery
+
+        var count: Int? = null
+        repository.getCommentCount(testPostId) { result ->
+            count = result.getOrNull()
+        }
+
+        assertNotNull(count)
+        assertEquals(2, count)
+        verify { mockExistingPostDoc.collection("comments") }
+        verify { mockCommentsCollection.get() }
+    }
+
+    @Test
+    fun `getCommentCount returns zero when no comments`() {
+        every { mockCommentsCollection.get() } returns mockTaskQuery
+        every { mockQuerySnapshot.size() } returns 0
+        every { mockQuerySnapshot.documents } returns emptyList()
+        every { mockTaskQuery.addOnSuccessListener(any()) } answers {
+            val listener = firstArg<OnSuccessListener<QuerySnapshot>>()
+            listener.onSuccess(mockQuerySnapshot)
+            mockTaskQuery
+        }
+        every { mockTaskQuery.addOnFailureListener(any()) } returns mockTaskQuery
+
+        var count: Int? = null
+        repository.getCommentCount(testPostId) { result ->
+            count = result.getOrNull()
+        }
+
+        assertNotNull(count)
+        assertEquals(0, count)
+    }
+
+    @Test
+    fun `getCommentCount propagates failure`() {
+        every { mockCommentsCollection.get() } returns mockTaskQuery
+        every { mockTaskQuery.addOnSuccessListener(any()) } returns mockTaskQuery
+        every { mockTaskQuery.addOnFailureListener(any()) } answers {
+            val listener = firstArg<OnFailureListener>()
+            listener.onFailure(Exception("Network error"))
+            mockTaskQuery
+        }
+
+        var resultCaptured: Result<Int>? = null
+        repository.getCommentCount(testPostId) { resultCaptured = it }
+
+        assertTrue(resultCaptured!!.isFailure)
+        assertEquals("Network error", resultCaptured!!.exceptionOrNull()?.message)
+    }
+
+    @Test
     fun `getFeedPosts excludes current user's own posts`() {
         val currentUserId = "user_current"
         val followedUserId = "user_followed"

@@ -5,6 +5,8 @@ import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.leteam.locked.firebase.FirebaseProvider
 import com.leteam.locked.notifications.NotificationScheduler
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +24,7 @@ class SettingsViewModelTest {
 
     private val mockApp: Application = mockk(relaxed = true)
     private val mockAuth: FirebaseAuth = mockk(relaxed = true)
+    private val mockFirestore: FirebaseFirestore = mockk(relaxed = true)
     private val mockPrefs: SharedPreferences = mockk(relaxed = true)
     private val mockEditor: SharedPreferences.Editor = mockk(relaxed = true)
 
@@ -49,8 +52,9 @@ class SettingsViewModelTest {
         every { anyConstructed<NotificationScheduler>().scheduleDailyReminder(any(), any()) } just Runs
         every { anyConstructed<NotificationScheduler>().cancelReminder() } just Runs
 
-        mockkStatic(FirebaseAuth::class)
-        every { FirebaseAuth.getInstance() } returns mockAuth
+        mockkObject(FirebaseProvider)
+        every { FirebaseProvider.auth } returns mockAuth
+        every { FirebaseProvider.firestore } returns mockFirestore
 
         viewModel = SettingsViewModel(mockApp)
     }

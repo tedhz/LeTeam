@@ -123,7 +123,16 @@ fun MainScreen(onSignedOut: () -> Unit) {
             composable(Routes.HOME) {
                 HomeScreen(
                     onPostClick = { navController.navigate(Routes.CAMERA) },
-                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) }
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) },
+                    onHeaderProfileClick = {
+                        navController.navigate(Routes.PROFILE) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
                 )
             }
 

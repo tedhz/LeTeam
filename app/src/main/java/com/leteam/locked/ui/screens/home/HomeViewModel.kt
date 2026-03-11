@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
 data class PostWithUser(
     val post: Post,
     val ownerFullName: String,
-    val ownerDisplayName: String
+    val ownerDisplayName: String,
+    val commentCount: Int = 0
 )
 
 data class CommentWithAuthor(
@@ -122,6 +123,13 @@ class HomeViewModel(
 
                                 _feedPosts.value = postsWithUsers
                                 _isLoading.value = false
+                                postsWithUsers.forEach { postWithUser ->
+                                    postsRepository.getCommentCount(postWithUser.post.id) { countResult ->
+                                        countResult.onSuccess { count ->
+                                            updateCommentCount(postWithUser.post.id, count)
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -178,6 +186,12 @@ class HomeViewModel(
         }
     }
 
+    fun updateCommentCount(postId: String, count: Int) {
+        _feedPosts.value = _feedPosts.value.map { postWithUser ->
+            if (postWithUser.post.id == postId) postWithUser.copy(commentCount = count) else postWithUser
+        }
+    }
+
     fun openCommentsDrawer(postId: String) {
         _commentsDrawerPostId.value = postId
         loadComments(postId)
@@ -197,6 +211,7 @@ class HomeViewModel(
                 if (comments.isEmpty()) {
                     _comments.value = emptyList()
                     _commentsLoading.value = false
+                    updateCommentCount(postId, 0)
                     return@getComments
                 }
                 val uniqueAuthorIds = comments.map { it.authorUserId }.distinct()
@@ -226,6 +241,7 @@ class HomeViewModel(
                                 )
                             }
                             _commentsLoading.value = false
+                            updateCommentCount(postId, comments.size)
                         }
                     }
                 }

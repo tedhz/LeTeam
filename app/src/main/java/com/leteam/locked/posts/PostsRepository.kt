@@ -250,6 +250,18 @@ class PostsRepository(
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
 
+    fun getCommentCount(
+        postId: String,
+        onResult: (Result<Int>) -> Unit
+    ) {
+        postCommentsCollection(postId)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                onResult(Result.success(snapshot.size()))
+            }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
     fun getComments(
         postId: String,
         onResult: (Result<List<Comment>>) -> Unit

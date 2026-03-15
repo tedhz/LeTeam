@@ -62,6 +62,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 fun ProfileScreen(
     profileUserId: String? = null,
     onUserClick: (String) -> Unit = {},
+    onPostClick: (String) -> Unit = {},
     viewModel: ProfileViewModel = viewModel()
 ) {
     val user by viewModel.user.collectAsState()
@@ -248,7 +249,10 @@ fun ProfileScreen(
             }
         } else {
             recentPosts.take(5).forEach { post ->
-                PostHistoryItem(post = post)
+                PostHistoryItem(
+                    post = post,
+                    onClick = { onPostClick(post.id) }
+                )
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
@@ -346,12 +350,16 @@ fun ProfileScreen(
 private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 
 @Composable
-private fun PostHistoryItem(post: Post) {
+private fun PostHistoryItem(
+    post: Post,
+    onClick: () -> Unit = {}
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -374,11 +382,23 @@ private fun PostHistoryItem(post: Post) {
                     maxLines = 2
                 )
             }
-            Text(
-                text = dateFormat.format(post.createdAt),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = dateFormat.format(post.createdAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                if (post.likes.isNotEmpty()) {
+                    Text(
+                        text = "${post.likes.size} like${if (post.likes.size == 1) "" else "s"}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }

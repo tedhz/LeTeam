@@ -42,6 +42,7 @@ import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
 import com.leteam.locked.ui.screens.search.SearchScreen
 import com.leteam.locked.ui.screens.workouts.WorkoutsFeedScreen
 import com.leteam.locked.ui.screens.settings.PasswordResetScreen
+import com.leteam.locked.ui.screens.home.PostDetailScreen
 
 private data class NavItem(
     val route: String,
@@ -151,7 +152,10 @@ fun MainScreen(onSignedOut: () -> Unit) {
             }
 
             composable(Routes.PROFILE) {
-                ProfileScreen(onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) })
+                ProfileScreen(
+                    onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
+                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) }
+                )
             }
 
             composable(
@@ -161,7 +165,20 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
                 ProfileScreen(
                     profileUserId = userId,
-                    onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) }
+                    onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
+                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) }
+                )
+            }
+
+            composable(
+                route = Routes.POST_DETAIL,
+                arguments = listOf(navArgument("postId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val postId = backStackEntry.arguments?.getString("postId") ?: return@composable
+                PostDetailScreen(
+                    postId = postId,
+                    onBack = { navController.popBackStack() },
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) }
                 )
             }
 

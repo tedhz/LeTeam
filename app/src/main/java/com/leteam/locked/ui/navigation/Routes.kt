@@ -15,8 +15,10 @@ object Routes {
     const val INSIGHTS = "insights"
     const val SIGNIN = "signin"
     const val PASSRESET = "passreset"
+    const val POST_DETAIL = "post/{postId}"
 
     fun profileUser(userId: String): String = "profile/$userId"
+    fun postDetail(postId: String): String = "post/$postId"
 
     fun posting(imageUri: Uri): String {
         val encodedUri = Uri.encode(imageUri.toString())

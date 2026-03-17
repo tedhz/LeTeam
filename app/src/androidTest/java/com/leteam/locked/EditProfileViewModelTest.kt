@@ -1,12 +1,14 @@
 package com.leteam.locked.ui.screens.profile
 
 import android.net.Uri
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.leteam.locked.firebase.FirebaseProvider
 import com.leteam.locked.photos.PhotoRepository
 import com.leteam.locked.users.User
 import com.leteam.locked.users.UserRepository
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.mockkObject
@@ -23,7 +25,9 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.runner.RunWith
 
+@RunWith(AndroidJUnit4::class)
 class EditProfileViewModelTest {
 
     private val testUserId = "user_123"
@@ -53,7 +57,7 @@ class EditProfileViewModelTest {
     }
 
     @Test
-    fun `load populates state from repository`() = runTest {
+    fun load_populatesStateFromRepository() = runTest {
         val u = User(
             userId = testUserId,
             fullName = "Anirudh",
@@ -77,7 +81,7 @@ class EditProfileViewModelTest {
     }
 
     @Test
-    fun `save rejects invalid handle`() = runTest {
+    fun save_rejectsInvalidHandle() = runTest {
         viewModel.setFullName("Name")
         viewModel.setHandle("!!bad!!")
 
@@ -88,7 +92,7 @@ class EditProfileViewModelTest {
     }
 
     @Test
-    fun `save checks availability then updates profile fields`() = runTest {
+    fun save_checksAvailabilityThenUpdatesProfileFields() = runTest {
         viewModel.setFullName("Name")
         viewModel.setHandle("@unique_name")
         viewModel.setBio("Bio")
@@ -113,7 +117,7 @@ class EditProfileViewModelTest {
     }
 
     @Test
-    fun `save uploads photo when selected and stores photoUrl`() = runTest {
+    fun save_uploadsPhotoWhenSelectedAndStoresPhotoUrl() = runTest {
         viewModel.setFullName("Name")
         viewModel.setHandle("unique_name")
         viewModel.setSelectedPhoto(Uri.parse("content://photo"))
@@ -122,7 +126,7 @@ class EditProfileViewModelTest {
             lastArg<(Result<Boolean>) -> Unit>().invoke(Result.success(true))
         }
 
-        every {
+        coEvery {
             mockPhotoRepo.uploadPhoto(
                 type = PhotoRepository.PhotoType.PROFILE_PHOTO,
                 userId = testUserId,
@@ -141,4 +145,3 @@ class EditProfileViewModelTest {
         assertEquals("https://cdn/profile.jpg", fieldsSlot.captured["photoUrl"])
     }
 }
-

@@ -206,12 +206,21 @@ fun HomeScreen(
                         .clickable(onClick = onHeaderProfileClick),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        modifier = Modifier.size(22.dp),
-                        tint = Color(0xFF424242)
-                    )
+                    if (currentUser?.photoUrl?.isNotBlank() == true) {
+                        AsyncImage(
+                            model = currentUser!!.photoUrl,
+                            contentDescription = "Profile",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            modifier = Modifier.size(22.dp),
+                            tint = Color(0xFF424242)
+                        )
+                    }
                 }
             }
         }
@@ -349,12 +358,21 @@ private fun FeedPostCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        modifier = Modifier.size(24.dp),
-                        tint = darkGrey
-                    )
+                    if (postWithUser.ownerPhotoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = postWithUser.ownerPhotoUrl,
+                            contentDescription = "Profile",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            modifier = Modifier.size(24.dp),
+                            tint = darkGrey
+                        )
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -403,7 +421,6 @@ private fun FeedPostCard(
                         )
                     }
 
-                    // Caption 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -501,4 +518,3 @@ private fun FeedPostCard(
         }
     }
 }
-

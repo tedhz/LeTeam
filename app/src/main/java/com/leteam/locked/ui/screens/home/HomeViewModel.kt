@@ -17,13 +17,15 @@ data class PostWithUser(
     val post: Post,
     val ownerFullName: String,
     val ownerDisplayName: String,
+    val ownerPhotoUrl: String,
     val commentCount: Int = 0
 )
 
 data class CommentWithAuthor(
     val comment: Comment,
     val authorDisplayName: String,
-    val authorFullName: String
+    val authorFullName: String,
+    val authorPhotoUrl: String
 )
 
 class HomeViewModel(
@@ -63,7 +65,6 @@ class HomeViewModel(
         _isLoading.value = true
 
         viewModelScope.launch {
-            // Load current user
             userRepository.getUser(userId) { result ->
                 result.onSuccess { user ->
                     _currentUser.value = user
@@ -73,7 +74,6 @@ class HomeViewModel(
                 }
             }
 
-            // Load feed posts
             postsRepository.getFeedPosts(userId, limit = 50) { postsResult ->
                 postsResult.onSuccess { posts ->
                     if (posts.isEmpty()) {
@@ -92,31 +92,33 @@ class HomeViewModel(
                         return@getFeedPosts
                     }
 
-                    val userInfoMap = mutableMapOf<String, Pair<String, String>>()
+                    val userInfoMap = mutableMapOf<String, Triple<String, String, String>>()
                     var completedCount = 0
                     val totalUsers = uniqueUserIds.size
 
                     uniqueUserIds.forEach { ownerUserId ->
                         userRepository.getUser(ownerUserId) { userResult ->
                             userResult.onSuccess { ownerUser ->
-                                userInfoMap[ownerUserId] = Pair(
+                                userInfoMap[ownerUserId] = Triple(
                                     ownerUser.fullName.ifBlank { "User" },
-                                    if (ownerUser.displayName.isNotBlank()) "@${ownerUser.displayName}" else ownerUser.email
+                                    if (ownerUser.displayName.isNotBlank()) "@${ownerUser.displayName}" else ownerUser.email,
+                                    ownerUser.photoUrl
                                 )
                             }
                             userResult.onFailure {
-                                userInfoMap[ownerUserId] = Pair("User", "")
+                                userInfoMap[ownerUserId] = Triple("User", "", "")
                             }
 
                             completedCount++
                             if (completedCount == totalUsers) {
                                 posts.forEach { post ->
-                                    val (fullName, displayName) = userInfoMap[post.ownerUserId] ?: Pair("User", "")
+                                    val (fullName, displayName, photoUrl) = userInfoMap[post.ownerUserId] ?: Triple("User", "", "")
                                     postsWithUsers.add(
                                         PostWithUser(
                                             post = post,
                                             ownerFullName = fullName,
-                                            ownerDisplayName = displayName
+                                            ownerDisplayName = displayName,
+                                            ownerPhotoUrl = photoUrl
                                         )
                                     )
                                 }
@@ -215,29 +217,31 @@ class HomeViewModel(
                     return@getComments
                 }
                 val uniqueAuthorIds = comments.map { it.authorUserId }.distinct()
-                val authorMap = mutableMapOf<String, Pair<String, String>>()
+                val authorMap = mutableMapOf<String, Triple<String, String, String>>()
                 var completed = 0
                 val total = uniqueAuthorIds.size
 
                 uniqueAuthorIds.forEach { authorId ->
                     userRepository.getUser(authorId) { userResult ->
                         userResult.onSuccess { user ->
-                            authorMap[authorId] = Pair(
+                            authorMap[authorId] = Triple(
                                 if (user.displayName.isNotBlank()) user.displayName else user.fullName.ifBlank { "User" },
-                                user.fullName.ifBlank { "User" }
+                                user.fullName.ifBlank { "User" },
+                                user.photoUrl
                             )
                         }
                         userResult.onFailure {
-                            authorMap[authorId] = Pair("User", "User")
+                            authorMap[authorId] = Triple("User", "User", "")
                         }
                         completed++
                         if (completed == total) {
                             _comments.value = comments.map { comment ->
-                                val (displayName, fullName) = authorMap[comment.authorUserId] ?: Pair("User", "User")
+                                val (displayName, fullName, photoUrl) = authorMap[comment.authorUserId] ?: Triple("User", "User", "")
                                 CommentWithAuthor(
                                     comment = comment,
                                     authorDisplayName = displayName,
-                                    authorFullName = fullName
+                                    authorFullName = fullName,
+                                    authorPhotoUrl = photoUrl
                                 )
                             }
                             _commentsLoading.value = false

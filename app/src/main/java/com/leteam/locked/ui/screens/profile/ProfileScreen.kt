@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,218 +122,217 @@ fun ProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-        if (user == null) {
+            if (user == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+                return@Column
+            }
+
+            val u = user!!
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
+                    .size(88.dp)
+                    .clip(CircleShape)
+                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator()
-            }
-            return@Column
-        }
-
-        val u = user!!
-
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .clip(CircleShape)
-                .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
-            contentAlignment = Alignment.Center
-        ) {
-            if (u.photoUrl.isNotBlank()) {
-                AsyncImage(
-                    model = u.photoUrl,
-                    contentDescription = "Profile photo",
-                    modifier = Modifier.fillMaxWidth().height(88.dp),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = "Profile photo",
-                    modifier = Modifier.size(44.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = u.fullName.ifBlank { "User" },
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        val handle = if (u.displayName.isNotBlank()) "@${u.displayName}" else u.email.ifBlank { "" }
-        if (handle.isNotBlank()) {
-            Text(
-                text = handle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        if (u.bio.isNotBlank()) {
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = u.bio,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // own profile shows "Edit profile", other users show Follow/Following.
-        when {
-            isFollowing == null -> {
-                OutlinedButton(
-                    onClick = {
-                        val handler = onEditProfileClick
-                        if (handler != null) handler() else showEditDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
-                ) {
-                    Text("Edit profile")
-                }
-            }
-            else -> {
-                val following = isFollowing
-                if (following != null) {
-                    FollowButton(
-                        isFollowing = following,
-                        inProgress = followInProgress,
-                        onToggle = viewModel::toggleFollow
+                if (u.photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = u.photoUrl,
+                        contentDescription = "Profile photo",
+                        modifier = Modifier.fillMaxWidth().height(88.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Profile photo",
+                        modifier = Modifier.size(44.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
-        }
 
-        if (followError != null) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
-                text = followError!!,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.fillMaxWidth()
+                text = u.fullName.ifBlank { "User" },
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        if (isFollowing == null) {
-            Text(
-                text = "Your network",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatItem(count = postCount, label = "Workouts")
-            StatItem(
-                count = followerCount,
-                label = "Followers",
-                onClick = {
-                    viewModel.loadFollowerUsers(u.userId)
-                    showFollowList = "followers"
-                }
-            )
-            StatItem(
-                count = followingCount,
-                label = "Following",
-                onClick = {
-                    viewModel.loadFollowingUsers(u.userId)
-                    showFollowList = "following"
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(28.dp))
-
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-            color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Recent posts",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        if (recentPosts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
-                contentAlignment = Alignment.Center
-            ) {
+            val handle = if (u.displayName.isNotBlank()) "@${u.displayName}" else u.email.ifBlank { "" }
+            if (handle.isNotBlank()) {
                 Text(
-                    text = "No posts yet",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = handle,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-        } else {
-            recentPosts.take(5).forEach { post ->
-                PostHistoryItem(
-                    post = post,
-                    onClick = { onPostClick(post.id) }
+
+            if (u.bio.isNotBlank()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = u.bio,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            when {
+                isFollowing == null -> {
+                    OutlinedButton(
+                        onClick = {
+                            val handler = onEditProfileClick
+                            if (handler != null) handler() else showEditDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium
+                    ) {
+                        Text("Edit profile")
+                    }
+                }
+                else -> {
+                    val following = isFollowing
+                    if (following != null) {
+                        FollowButton(
+                            isFollowing = following,
+                            inProgress = followInProgress,
+                            onToggle = viewModel::toggleFollow
+                        )
+                    }
+                }
+            }
+
+            if (followError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = followError!!,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            if (isFollowing == null) {
+                Text(
+                    text = "Your network",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "Workout history",
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        if (recentWorkouts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(72.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Text(
-                    text = "No workouts yet",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                StatItem(count = postCount, label = "Workouts")
+                StatItem(
+                    count = followerCount,
+                    label = "Followers",
+                    onClick = {
+                        viewModel.loadFollowerUsers(u.userId)
+                        showFollowList = "followers"
+                    }
+                )
+                StatItem(
+                    count = followingCount,
+                    label = "Following",
+                    onClick = {
+                        viewModel.loadFollowingUsers(u.userId)
+                        showFollowList = "following"
+                    }
                 )
             }
-        } else {
-            recentWorkouts.firstOrNull()?.let { workout ->
-                WorkoutHistoryItem(workout = workout)
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            HorizontalDivider(
+                modifier = Modifier.fillMaxWidth(),
+                color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Recent posts",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (recentPosts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No posts yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                recentPosts.take(5).forEach { post ->
+                    PostHistoryItem(
+                        post = post,
+                        onClick = { onPostClick(post.id) }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
-        }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
+                text = "Workout history",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            if (recentWorkouts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No workouts yet",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                recentWorkouts.firstOrNull()?.let { workout ->
+                    WorkoutHistoryItem(workout = workout)
+                }
+            }
 
             Spacer(modifier = Modifier.height(24.dp))
         }
@@ -516,12 +517,21 @@ private fun FollowListUserRow(
                 .background(MaterialTheme.colorScheme.surfaceVariant),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (user.photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = user.photoUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
         Column(modifier = Modifier.padding(start = 12.dp)) {
             Text(

@@ -160,12 +160,21 @@ private fun PostDetailCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile",
-                        modifier = Modifier.size(24.dp),
-                        tint = postDetailDarkGrey
-                    )
+                    if (postWithUser.ownerPhotoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = postWithUser.ownerPhotoUrl,
+                            contentDescription = "Profile",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            modifier = Modifier.size(24.dp),
+                            tint = postDetailDarkGrey
+                        )
+                    }
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(

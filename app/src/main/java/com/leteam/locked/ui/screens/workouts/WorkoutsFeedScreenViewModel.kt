@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.leteam.locked.users.UserRepository
 import com.leteam.locked.workout.Exercise
 import com.leteam.locked.workout.Workout
 import com.leteam.locked.workout.WorkoutRepository
@@ -20,11 +21,13 @@ data class WorkoutsFeedUiState(
 data class WorkoutFeedItem(
     val workout: Workout,
     val userDisplayName: String,
+    val userPhotoUrl: String,
     val exercises: List<Exercise>
 )
 
 class WorkoutsFeedViewModel(
     private val repo: WorkoutRepository,
+    private val userRepository: UserRepository,
     private val auth: FirebaseAuth
 ) : ViewModel() {
 
@@ -67,8 +70,16 @@ class WorkoutsFeedViewModel(
                     var failedOnce: String? = null
 
                     workouts.forEach { w ->
-                        repo.getUserDisplayName(w.userId) { nameResult ->
-                            val displayName = nameResult.getOrNull() ?: w.userId
+                        userRepository.getUser(w.userId) { userResult ->
+                            val user = userResult.getOrNull()
+                            val displayName = if (user != null && user.displayName.isNotBlank()) {
+                                "@${user.displayName}"
+                            } else if (user != null && user.fullName.isNotBlank()) {
+                                user.fullName
+                            } else {
+                                "User"
+                            }
+                            val photoUrl = user?.photoUrl ?: ""
 
                             repo.getExercisesForWorkout(w.userId, w.id) { exResult ->
                                 val exercises = exResult.getOrNull().orEmpty()
@@ -80,6 +91,7 @@ class WorkoutsFeedViewModel(
                                     WorkoutFeedItem(
                                         workout = w,
                                         userDisplayName = displayName,
+                                        userPhotoUrl = photoUrl,
                                         exercises = exercises
                                     )
                                 )
@@ -113,8 +125,9 @@ class WorkoutsFeedViewModel(
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
                 val db = FirebaseFirestore.getInstance()
                 val repo = WorkoutRepository(db)
+                val userRepository = UserRepository(db)
                 val auth = FirebaseAuth.getInstance()
-                return WorkoutsFeedViewModel(repo, auth) as T
+                return WorkoutsFeedViewModel(repo, userRepository, auth) as T
             }
         }
     }

@@ -2,6 +2,8 @@ package com.leteam.locked.ui.screens.workouts
 
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
+import com.leteam.locked.users.User
+import com.leteam.locked.users.UserRepository
 import com.leteam.locked.workout.Exercise
 import com.leteam.locked.workout.Workout
 import com.leteam.locked.workout.WorkoutRepository
@@ -19,10 +21,11 @@ class WorkoutsFeedScreenViewModelTest {
     @Test
     fun `init sets Not signed in when currentUser is null`() {
         val repo: WorkoutRepository = mockk(relaxed = true)
+        val userRepo: UserRepository = mockk(relaxed = true)
         val auth: FirebaseAuth = mockk()
         every { auth.currentUser } returns null
 
-        val vm = WorkoutsFeedViewModel(repo, auth)
+        val vm = WorkoutsFeedViewModel(repo, userRepo, auth)
 
         val state = vm.uiState.value
         assertTrue(!state.isLoading)
@@ -35,6 +38,7 @@ class WorkoutsFeedScreenViewModelTest {
     @Test
     fun `init sets empty feedItems when workouts list is empty`() {
         val repo: WorkoutRepository = mockk(relaxed = true)
+        val userRepo: UserRepository = mockk(relaxed = true)
         val auth: FirebaseAuth = mockk()
         val user: FirebaseUser = mockk()
 
@@ -53,7 +57,7 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.success(emptyList()))
         }
 
-        val vm = WorkoutsFeedViewModel(repo, auth)
+        val vm = WorkoutsFeedViewModel(repo, userRepo, auth)
 
         val state = vm.uiState.value
         assertTrue(!state.isLoading)
@@ -62,13 +66,14 @@ class WorkoutsFeedScreenViewModelTest {
     }
 
     @Test
-    fun `init builds sorted feed items with display name and exercises`() {
+    fun `init builds sorted feed items with display name, photo, and exercises`() {
         val repo: WorkoutRepository = mockk(relaxed = true)
+        val userRepo: UserRepository = mockk(relaxed = true)
         val auth: FirebaseAuth = mockk()
-        val user: FirebaseUser = mockk()
+        val authUser: FirebaseUser = mockk()
 
-        every { user.uid } returns "me"
-        every { auth.currentUser } returns user
+        every { authUser.uid } returns "me"
+        every { auth.currentUser } returns authUser
 
         val newerDate = Date(2000L)
         val olderDate = Date(1000L)
@@ -90,13 +95,13 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.success(workouts))
         }
 
-        every { repo.getUserDisplayName("u1", any()) } answers {
-            val cb = secondArg<(Result<String>) -> Unit>()
-            cb(Result.success("Alice"))
+        every { userRepo.getUser("u1", any()) } answers {
+            val cb = secondArg<(Result<User>) -> Unit>()
+            cb(Result.success(User(userId = "u1", displayName = "Alice", fullName = "Alice Smith", photoUrl = "url1")))
         }
-        every { repo.getUserDisplayName("u2", any()) } answers {
-            val cb = secondArg<(Result<String>) -> Unit>()
-            cb(Result.success("Bob"))
+        every { userRepo.getUser("u2", any()) } answers {
+            val cb = secondArg<(Result<User>) -> Unit>()
+            cb(Result.success(User(userId = "u2", displayName = "", fullName = "Bob", photoUrl = "url2")))
         }
 
         every { repo.getExercisesForWorkout("u1", "w_new", any()) } answers {
@@ -120,7 +125,7 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.success(emptyList()))
         }
 
-        val vm = WorkoutsFeedViewModel(repo, auth)
+        val vm = WorkoutsFeedViewModel(repo, userRepo, auth)
 
         val state = vm.uiState.value
         assertTrue(!state.isLoading)
@@ -128,11 +133,13 @@ class WorkoutsFeedScreenViewModelTest {
         assertEquals(2, state.feedItems.size)
 
         assertEquals("w_new", state.feedItems[0].workout.id)
-        assertEquals("Alice", state.feedItems[0].userDisplayName)
+        assertEquals("@Alice", state.feedItems[0].userDisplayName) // Display name prefixed with @
+        assertEquals("url1", state.feedItems[0].userPhotoUrl)
         assertEquals(1, state.feedItems[0].exercises.size)
 
         assertEquals("w_old", state.feedItems[1].workout.id)
-        assertEquals("Bob", state.feedItems[1].userDisplayName)
+        assertEquals("Bob", state.feedItems[1].userDisplayName) // Fallback to full name
+        assertEquals("url2", state.feedItems[1].userPhotoUrl)
         assertEquals(0, state.feedItems[1].exercises.size)
 
         verify(exactly = 1) {
@@ -148,6 +155,7 @@ class WorkoutsFeedScreenViewModelTest {
     @Test
     fun `init sets errorMessage when feed load fails`() {
         val repo: WorkoutRepository = mockk(relaxed = true)
+        val userRepo: UserRepository = mockk(relaxed = true)
         val auth: FirebaseAuth = mockk()
         val user: FirebaseUser = mockk()
 
@@ -166,7 +174,7 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.failure(Exception("boom")))
         }
 
-        val vm = WorkoutsFeedViewModel(repo, auth)
+        val vm = WorkoutsFeedViewModel(repo, userRepo, auth)
 
         val state = vm.uiState.value
         assertTrue(!state.isLoading)
@@ -177,11 +185,12 @@ class WorkoutsFeedScreenViewModelTest {
     @Test
     fun `init keeps going when exercises fetch fails and surfaces message`() {
         val repo: WorkoutRepository = mockk(relaxed = true)
+        val userRepo: UserRepository = mockk(relaxed = true)
         val auth: FirebaseAuth = mockk()
-        val user: FirebaseUser = mockk()
+        val authUser: FirebaseUser = mockk()
 
-        every { user.uid } returns "me"
-        every { auth.currentUser } returns user
+        every { authUser.uid } returns "me"
+        every { auth.currentUser } returns authUser
 
         val workouts = listOf(
             Workout(id = "w1", userId = "u1", workoutDate = Date(2000L), createdAt = Date(2000L))
@@ -199,9 +208,9 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.success(workouts))
         }
 
-        every { repo.getUserDisplayName("u1", any()) } answers {
-            val cb = secondArg<(Result<String>) -> Unit>()
-            cb(Result.success("Alice"))
+        every { userRepo.getUser("u1", any()) } answers {
+            val cb = secondArg<(Result<User>) -> Unit>()
+            cb(Result.success(User(userId = "u1", displayName = "Alice", photoUrl = "")))
         }
 
         every { repo.getExercisesForWorkout("u1", "w1", any()) } answers {
@@ -209,14 +218,15 @@ class WorkoutsFeedScreenViewModelTest {
             cb(Result.failure(Exception("exercise fail")))
         }
 
-        val vm = WorkoutsFeedViewModel(repo, auth)
+        val vm = WorkoutsFeedViewModel(repo, userRepo, auth)
 
         val state = vm.uiState.value
         assertTrue(!state.isLoading)
         assertEquals("exercise fail", state.errorMessage)
         assertEquals(1, state.feedItems.size)
         assertEquals("w1", state.feedItems[0].workout.id)
-        assertEquals("Alice", state.feedItems[0].userDisplayName)
+        assertEquals("@Alice", state.feedItems[0].userDisplayName)
+        assertEquals("", state.feedItems[0].userPhotoUrl)
         assertTrue(state.feedItems[0].exercises.isEmpty())
     }
 }

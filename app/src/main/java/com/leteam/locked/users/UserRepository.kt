@@ -16,6 +16,10 @@ class UserRepository(
         onResult: (Result<Unit>) -> Unit
     ) {
         val payload = hashMapOf(
+            "displayName" to "",
+            "fullName" to "",
+            "bio" to "",
+            "photoUrl" to "",
             "email" to email,
             "dailyPostStatus" to hashMapOf(
                 "hasPostedToday" to false,
@@ -32,19 +36,42 @@ class UserRepository(
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
 
+    fun isDisplayNameAvailable(
+        displayName: String,
+        myUserId: String,
+        onResult: (Result<Boolean>) -> Unit
+    ) {
+        val handle = displayName.trim().removePrefix("@").lowercase()
+        if (handle.isBlank()) {
+            onResult(Result.success(false))
+            return
+        }
+        usersCollection()
+            .whereEqualTo("displayName", handle)
+            .get()
+            .addOnSuccessListener { snapshot ->
+                // Handle edge cases where multiple docs might match (shouldn't happen, but can).
+                // It's available if there are no matches, or every match is the current user.
+                val available = snapshot.isEmpty || snapshot.documents.all { it.id == myUserId }
+                onResult(Result.success(available))
+            }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
     fun searchUsersByDisplayName(
         prefix: String,
         limit: Long = 20,
         onResult: (Result<List<User>>) -> Unit
     ) {
-        if (prefix.isBlank()) {
+        val start = prefix.trim().removePrefix("@").lowercase()
+        if (start.isBlank()) {
             onResult(Result.success(emptyList()))
             return
         }
-        val end = prefix + "\uf8ff"
+        val end = start + "\uf8ff"
         usersCollection()
             .orderBy("displayName", Query.Direction.ASCENDING)
-            .startAt(prefix)
+            .startAt(start)
             .endAt(end)
             .limit(limit)
             .get()
@@ -53,6 +80,8 @@ class UserRepository(
                     val uid = doc.id
                     val displayName = doc.getString("displayName") ?: ""
                     val fullName = doc.getString("fullName") ?: ""
+                    val bio = doc.getString("bio") ?: ""
+                    val photoUrl = doc.getString("photoUrl") ?: ""
                     val email = doc.getString("email") ?: ""
                     val dpsMap = doc.get("dailyPostStatus") as? Map<*, *>
                     val hasPostedToday = dpsMap?.get("hasPostedToday") as? Boolean ?: false
@@ -63,6 +92,8 @@ class UserRepository(
                         userId = uid,
                         fullName = fullName,
                         displayName = displayName,
+                        bio = bio,
+                        photoUrl = photoUrl,
                         email = email,
                         dailyPostStatus = User.DailyPostStatus(hasPostedToday, postId),
                         notificationPrefs = User.NotificationPrefs(enabled),
@@ -87,6 +118,8 @@ class UserRepository(
 
                 val displayName = snap.getString("displayName") ?: ""
                 val fullName = snap.getString("fullName") ?: ""
+                val bio = snap.getString("bio") ?: ""
+                val photoUrl = snap.getString("photoUrl") ?: ""
                 val email = snap.getString("email") ?: ""
 
                 val dpsMap = snap.get("dailyPostStatus") as? Map<*, *>
@@ -104,6 +137,8 @@ class UserRepository(
                             userId = userId,
                             fullName = fullName,
                             displayName = displayName,
+                            bio = bio,
+                            photoUrl = photoUrl,
                             email = email,
                             dailyPostStatus = User.DailyPostStatus(hasPostedToday, postId),
                             notificationPrefs = User.NotificationPrefs(enabled),
@@ -164,7 +199,33 @@ class UserRepository(
     }
 
     fun updateDisplayName(userId: String, displayName: String, onResult: (Result<Unit>) -> Unit) {
-        userDoc(userId).update("displayName", displayName)
+        userDoc(userId).update("displayName", displayName.trim().removePrefix("@").lowercase())
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun updateBio(userId: String, bio: String, onResult: (Result<Unit>) -> Unit) {
+        userDoc(userId).update("bio", bio)
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun updatePhotoUrl(userId: String, photoUrl: String, onResult: (Result<Unit>) -> Unit) {
+        userDoc(userId).update("photoUrl", photoUrl)
+            .addOnSuccessListener { onResult(Result.success(Unit)) }
+            .addOnFailureListener { e -> onResult(Result.failure(e)) }
+    }
+
+    fun updateProfileFields(
+        userId: String,
+        fields: Map<String, Any>,
+        onResult: (Result<Unit>) -> Unit
+    ) {
+        if (fields.isEmpty()) {
+            onResult(Result.success(Unit))
+            return
+        }
+        userDoc(userId).update(fields)
             .addOnSuccessListener { onResult(Result.success(Unit)) }
             .addOnFailureListener { e -> onResult(Result.failure(e)) }
     }
@@ -173,7 +234,7 @@ class UserRepository(
         displayName: String,
         onResult: (Result<Boolean>) -> Unit
     ) {
-        val normalized = displayName.trim()
+        val normalized = displayName.trim().removePrefix("@").lowercase()
 
         if (normalized.isBlank()) {
             onResult(Result.success(false))

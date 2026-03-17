@@ -29,6 +29,7 @@ import com.leteam.locked.workout.Workout
 import java.text.SimpleDateFormat
 import java.util.Locale
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -38,10 +39,13 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,6 +67,8 @@ fun ProfileScreen(
     profileUserId: String? = null,
     onUserClick: (String) -> Unit = {},
     onPostClick: (String) -> Unit = {},
+    onBackClick: (() -> Unit)? = null,
+    onEditProfileClick: (() -> Unit)? = null,
     viewModel: ProfileViewModel = viewModel()
 ) {
     val user by viewModel.user.collectAsState()
@@ -87,13 +93,32 @@ fun ProfileScreen(
     val scrollState = rememberScrollState()
     var showEditDialog by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 20.dp)
-    ) {
-        Spacer(modifier = Modifier.height(24.dp))
+    val showBack = profileUserId != null && onBackClick != null
+
+    Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.White,
+        topBar = {
+            if (showBack) {
+                TopAppBar(
+                    title = { Text("Profile", fontWeight = FontWeight.Black, color = androidx.compose.ui.graphics.Color.Black) },
+                    navigationIcon = {
+                        IconButton(onClick = { onBackClick?.invoke() }) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = androidx.compose.ui.graphics.Color.Black)
+                        }
+                    },
+                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.White)
+                )
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(paddingValues)
+                .padding(horizontal = 20.dp)
+        ) {
+            Spacer(modifier = Modifier.height(24.dp))
 
         if (user == null) {
             Box(
@@ -113,15 +138,24 @@ fun ProfileScreen(
             modifier = Modifier
                 .size(88.dp)
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Profile photo",
-                modifier = Modifier.size(44.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-            )
+            if (u.photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = u.photoUrl,
+                    contentDescription = "Profile photo",
+                    modifier = Modifier.fillMaxWidth().height(88.dp),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Profile photo",
+                    modifier = Modifier.size(44.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -144,13 +178,25 @@ fun ProfileScreen(
             )
         }
 
+        if (u.bio.isNotBlank()) {
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = u.bio,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
 
         // own profile shows "Edit profile", other users show Follow/Following.
         when {
             isFollowing == null -> {
                 OutlinedButton(
-                    onClick = { showEditDialog = true },
+                    onClick = {
+                        val handler = onEditProfileClick
+                        if (handler != null) handler() else showEditDialog = true
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium
                 ) {
@@ -183,7 +229,7 @@ fun ProfileScreen(
 
         HorizontalDivider(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
         )
         Spacer(modifier = Modifier.height(12.dp))
         if (isFollowing == null) {
@@ -221,7 +267,7 @@ fun ProfileScreen(
 
         HorizontalDivider(
             modifier = Modifier.fillMaxWidth(),
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            color = androidx.compose.ui.graphics.Color(0xFFE0E0E0)
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -238,7 +284,7 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .height(72.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -272,7 +318,7 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .height(72.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -287,7 +333,8 @@ fun ProfileScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+        }
     }
 
     if (showEditDialog) {
@@ -358,7 +405,7 @@ private fun PostHistoryItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(androidx.compose.ui.graphics.Color(0xFFEDEDED))
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -409,7 +456,7 @@ private fun WorkoutHistoryItem(workout: Workout) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            .background(androidx.compose.ui.graphics.Color(0xFFEDEDED))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

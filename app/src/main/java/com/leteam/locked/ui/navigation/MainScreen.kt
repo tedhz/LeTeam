@@ -36,6 +36,7 @@ import com.leteam.locked.ui.screens.camera.CameraScreen
 import com.leteam.locked.ui.screens.camera.PostingScreen
 import com.leteam.locked.ui.screens.home.HomeScreen
 import com.leteam.locked.ui.screens.profile.ProfileScreen
+import com.leteam.locked.ui.screens.profile.EditProfileScreen
 import com.leteam.locked.ui.screens.settings.SettingsScreen
 import com.leteam.locked.ui.screens.insights.InsightsScreen
 import com.leteam.locked.ui.screens.workouts.MyWorkoutsScreen
@@ -154,7 +155,8 @@ fun MainScreen(onSignedOut: () -> Unit) {
             composable(Routes.PROFILE) {
                 ProfileScreen(
                     onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
-                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) }
+                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) },
+                    onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) }
                 )
             }
 
@@ -166,7 +168,15 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 ProfileScreen(
                     profileUserId = userId,
                     onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
-                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) }
+                    onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            composable(Routes.EDIT_PROFILE) {
+                EditProfileScreen(
+                    onBack = { navController.popBackStack() },
+                    onSaved = { navController.popBackStack() }
                 )
             }
 

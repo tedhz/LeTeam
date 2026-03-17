@@ -6,6 +6,7 @@ object Routes {
     const val HOME = "home"
     const val PROFILE = "profile"
     const val PROFILE_USER = "profile/{userId}"
+    const val EDIT_PROFILE = "editProfile"
     const val SETTINGS = "settings"
     const val CAMERA = "camera"
     const val WORKOUTS = "workouts"

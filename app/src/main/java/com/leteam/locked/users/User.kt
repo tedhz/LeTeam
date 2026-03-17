@@ -6,6 +6,8 @@ data class User(
     val userId: String = "",
     val fullName: String = "",
     val displayName: String = "",
+    val bio: String = "",
+    val photoUrl: String = "",
     val email: String = "",
     val dailyPostStatus: DailyPostStatus = DailyPostStatus(),
     val notificationPrefs: NotificationPrefs = NotificationPrefs(),

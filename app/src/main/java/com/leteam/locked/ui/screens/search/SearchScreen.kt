@@ -48,8 +48,12 @@ fun SearchScreen(
     val isLoading by viewModel.isLoading.collectAsState()
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.White,
         topBar = {
-            TopAppBar(title = { Text("Search users") })
+            TopAppBar(
+                title = { Text("Search users", fontWeight = androidx.compose.ui.text.font.FontWeight.Black, color = androidx.compose.ui.graphics.Color.Black) },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = androidx.compose.ui.graphics.Color.White)
+            )
         }
     ) { paddingValues ->
         Column(
@@ -104,7 +108,7 @@ private fun UserSearchItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(),
+        colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFFEDEDED)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(

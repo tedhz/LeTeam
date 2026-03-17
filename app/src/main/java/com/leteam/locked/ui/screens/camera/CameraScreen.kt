@@ -8,15 +8,25 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -31,7 +41,6 @@ private fun createImageUri(context: Context): Uri {
             put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/LeTeamLocked")
         }
     }
-
     return context.contentResolver.insert(
         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
         contentValues
@@ -47,7 +56,6 @@ fun CameraScreen(
 ) {
     val context = LocalContext.current
     val photoUri by viewModel.photoUri.collectAsState()
-
     var launchedOnce by rememberSaveable { mutableStateOf(false) }
     var permissionDenied by rememberSaveable { mutableStateOf(false) }
     var pendingUri by rememberSaveable { mutableStateOf<Uri?>(null) }
@@ -63,7 +71,7 @@ fun CameraScreen(
                 captureError = null
             } else {
                 viewModel.setPhotoUri(null)
-                captureError = "Capture succeeded but no URI was available."
+                captureError = "Capture failed."
             }
         } else {
             pendingUri?.let { context.contentResolver.delete(it, null, null) }
@@ -78,13 +86,10 @@ fun CameraScreen(
         permissionDenied = !granted
         if (granted) {
             captureError = null
-            launchCameraFlow(
-                context = context,
-                onUriReady = { uri ->
-                    pendingUri = uri
-                    takePictureLauncher.launch(uri)
-                }
-            )
+            launchCameraFlow(context) { uri ->
+                pendingUri = uri
+                takePictureLauncher.launch(uri)
+            }
         }
     }
 
@@ -109,96 +114,115 @@ fun CameraScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("New Post") },
+                title = { Text("Capture", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                )
             )
-        },
-        bottomBar = {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { retake() },
-                    enabled = !permissionDenied,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Retake")
-                }
-
-                Button(
-                    onClick = { photoUri?.let(onPostClick) },
-                    enabled = photoUri != null,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Next")
-                }
-            }
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center
         ) {
             when {
                 permissionDenied -> {
-                    Text(
-                        "Camera permission denied. Enable it in Settings to take a photo.",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = {
-                        requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
-                    }) {
-                        Text("Try Again")
-                    }
-                }
-
-                photoUri == null -> {
-                    if (captureError != null) {
-                        Text(
-                            text = captureError!!,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                        Spacer(Modifier.height(12.dp))
-                    } else {
-                        Text("Opening camera...", style = MaterialTheme.typography.bodyLarge)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(48.dp), tint = Color.Gray)
                         Spacer(Modifier.height(16.dp))
-                        CircularProgressIndicator()
+                        Text("Camera access required", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+                        Spacer(Modifier.height(24.dp))
+                        Button(
+                            onClick = { requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA) },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground, contentColor = MaterialTheme.colorScheme.background),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Enable Camera")
+                        }
                     }
                 }
-
+                photoUri == null -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        if (captureError != null) {
+                            Text(text = captureError!!, color = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = { retake() },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.onBackground, contentColor = MaterialTheme.colorScheme.background),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Try Again")
+                            }
+                        } else {
+                            CircularProgressIndicator(color = MaterialTheme.colorScheme.onBackground)
+                        }
+                    }
+                }
                 else -> {
                     val uri = photoUri!!
-
-
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(uri)
-                            .crossfade(true)
-                            .memoryCacheKey(uri.toString())
-                            .diskCacheKey(uri.toString())
-                            .build(),
-                        contentDescription = "Captured photo",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(3f / 4f),
-                        onError = {
-                            android.util.Log.e("CameraScreen", "Coil failed to load: $uri", it.result.throwable)
-                            captureError = it.result.throwable?.toString() ?: "Failed to load image."
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
+                                .aspectRatio(4f / 5f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Color.Black)
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(uri)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = "Captured photo",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
-                    )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 32.dp, start = 32.dp, end = 32.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(
+                                onClick = { retake() },
+                                modifier = Modifier
+                                    .size(64.dp)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = "Retake", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(32.dp))
+                            }
+                            IconButton(
+                                onClick = { onPostClick(uri) },
+                                modifier = Modifier
+                                    .size(80.dp)
+                                    .background(MaterialTheme.colorScheme.onBackground, CircleShape)
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = "Next", tint = MaterialTheme.colorScheme.background, modifier = Modifier.size(40.dp))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -211,18 +235,10 @@ private fun launchCameraFlow(
     onPermissionDenied: (() -> Unit)? = null,
     onUriReady: (Uri) -> Unit
 ) {
-    val hasPermission = ContextCompat.checkSelfPermission(
-        context,
-        android.Manifest.permission.CAMERA
-    ) == PackageManager.PERMISSION_GRANTED
-
+    val hasPermission = ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     if (hasPermission) {
         onUriReady(createImageUri(context))
     } else {
-        if (onRequestPermission != null) {
-            onRequestPermission()
-        } else {
-            onPermissionDenied?.invoke()
-        }
+        onRequestPermission?.invoke() ?: onPermissionDenied?.invoke()
     }
 }

@@ -151,14 +151,14 @@ class PostDetailViewModelTest {
         assertNull(viewModel.currentUserId)
     }
 
-    private fun stubLoadPostSuccess() {
+    private fun stubLoadPostSuccess(likes: List<String> = emptyList()) {
         val post = Post(
             id = postId,
             caption = "Test",
             ownerUserId = ownerUserId,
             photoUrl = "url",
             createdAt = Date(),
-            likes = emptyList()
+            likes = likes
         )
         val owner = User(userId = ownerUserId, fullName = "Owner", displayName = "owner", email = "o@test.com")
         every { mockPostsRepo.getPost(postId, any()) } answers {
@@ -365,5 +365,84 @@ class PostDetailViewModelTest {
         verify { mockPostsRepo.addComment(postId, testUserId, "hello", any()) }
         verify(atLeast = 1) { mockPostsRepo.getComments(postId, any()) }
         assertTrue(onDoneCalled)
+    }
+
+    @Test
+    fun `openLikesDrawer sets drawer open and loads like users`() = runTest {
+        val likerId = "liker_1"
+        val liker = User(userId = likerId, fullName = "Liker Name", displayName = "liker", email = "l@test.com")
+        stubLoadPostSuccess(likes = listOf(likerId))
+        viewModel.loadPost(postId)
+        advanceUntilIdle()
+
+        every { mockUserRepo.getUser(likerId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+
+        viewModel.openLikesDrawer()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.likesDrawerOpen.value)
+        assertEquals(1, viewModel.likeUsers.value.size)
+        assertEquals("Liker Name", viewModel.likeUsers.value[0].fullName)
+        assertFalse(viewModel.likesListLoading.value)
+        verify { mockUserRepo.getUser(likerId, any()) }
+    }
+
+    @Test
+    fun `openLikesDrawer with empty likes keeps likeUsers empty`() = runTest {
+        stubLoadPostSuccess(likes = emptyList())
+        viewModel.loadPost(postId)
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.likesDrawerOpen.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
+        assertFalse(viewModel.likesListLoading.value)
+    }
+
+    @Test
+    fun `openCommentsDrawer closes likes drawer`() = runTest {
+        val likerId = "liker_1"
+        val liker = User(userId = likerId, fullName = "Liker", displayName = "liker", email = "l@test.com")
+        stubLoadPostSuccess(likes = listOf(likerId))
+        viewModel.loadPost(postId)
+        advanceUntilIdle()
+        every { mockUserRepo.getUser(likerId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+        viewModel.openLikesDrawer()
+        advanceUntilIdle()
+        assertTrue(viewModel.likesDrawerOpen.value)
+
+        every { mockPostsRepo.getComments(postId, any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        viewModel.openCommentsDrawer()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.likesDrawerOpen.value)
+        assertTrue(viewModel.commentsDrawerOpen.value)
+    }
+
+    @Test
+    fun `closeLikesDrawer clears likes state`() = runTest {
+        val likerId = "liker_1"
+        val liker = User(userId = likerId, fullName = "Liker", displayName = "liker", email = "l@test.com")
+        stubLoadPostSuccess(likes = listOf(likerId))
+        viewModel.loadPost(postId)
+        advanceUntilIdle()
+        every { mockUserRepo.getUser(likerId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+        viewModel.openLikesDrawer()
+        advanceUntilIdle()
+
+        viewModel.closeLikesDrawer()
+
+        assertFalse(viewModel.likesDrawerOpen.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
     }
 }

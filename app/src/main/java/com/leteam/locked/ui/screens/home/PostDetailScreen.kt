@@ -44,6 +44,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.leteam.locked.ui.components.UserListBottomSheet
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -66,6 +67,9 @@ fun PostDetailScreen(
     val commentsDrawerOpen by viewModel.commentsDrawerOpen.collectAsState()
     val comments by viewModel.comments.collectAsState()
     val commentsLoading by viewModel.commentsLoading.collectAsState()
+    val likesDrawerOpen by viewModel.likesDrawerOpen.collectAsState()
+    val likeUsers by viewModel.likeUsers.collectAsState()
+    val likesListLoading by viewModel.likesListLoading.collectAsState()
 
     LaunchedEffect(postId) {
         viewModel.loadPost(postId)
@@ -78,6 +82,19 @@ fun PostDetailScreen(
             onDismiss = { viewModel.closeCommentsDrawer() },
             onSendComment = { text ->
                 viewModel.addComment(postId, text) { }
+            }
+        )
+    }
+
+    if (likesDrawerOpen) {
+        UserListBottomSheet(
+            title = "Likes",
+            users = likeUsers,
+            loading = likesListLoading,
+            onDismiss = { viewModel.closeLikesDrawer() },
+            onUserClick = { userId ->
+                onUserClick(userId)
+                viewModel.closeLikesDrawer()
             }
         )
     }
@@ -277,7 +294,10 @@ private fun PostDetailCard(
                                     Text(
                                         text = likeCount.toString(),
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = postDetailLightGrey
+                                        color = postDetailLightGrey,
+                                        modifier = Modifier.clickable {
+                                            viewModel.openLikesDrawer()
+                                        }
                                     )
                                 }
                                 IconButton(

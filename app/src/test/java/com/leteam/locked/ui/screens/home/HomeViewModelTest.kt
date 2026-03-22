@@ -595,5 +595,176 @@ class HomeViewModelTest {
         verify { mockPostsRepo.getComments("post1", any()) }
         assertTrue(onDoneCalled)
     }
+
+    @Test
+    fun `openLikesDrawer sets post id clears comments and loads like users`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val liker = User(userId = otherUserId, fullName = "Liker", displayName = "liker", email = "l@test.com")
+        val post = Post(
+            id = "post1",
+            caption = "Test",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = listOf(otherUserId)
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        every { mockUserRepo.getUser(otherUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("post1")
+        advanceUntilIdle()
+
+        assertEquals("post1", viewModel.likesDrawerPostId.value)
+        assertNull(viewModel.commentsDrawerPostId.value)
+        assertEquals(1, viewModel.likeUsers.value.size)
+        assertEquals("Liker", viewModel.likeUsers.value[0].fullName)
+        assertFalse(viewModel.likesListLoading.value)
+        verify { mockUserRepo.getUser(otherUserId, any()) }
+    }
+
+    @Test
+    fun `openLikesDrawer when post not in feed does not set likes drawer`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(id = "post1", ownerUserId = followedUserId, photoUrl = "url", createdAt = Date())
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("other_post")
+        advanceUntilIdle()
+
+        assertNull(viewModel.likesDrawerPostId.value)
+    }
+
+    @Test
+    fun `openLikesDrawer with empty likes leaves likeUsers empty`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val post = Post(
+            id = "post1",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = emptyList()
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("post1")
+        advanceUntilIdle()
+
+        assertEquals("post1", viewModel.likesDrawerPostId.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
+        assertFalse(viewModel.likesListLoading.value)
+    }
+
+    @Test
+    fun `openCommentsDrawer clears likes drawer state`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val liker = User(userId = otherUserId, fullName = "Liker", displayName = "liker", email = "l@test.com")
+        val post = Post(
+            id = "post1",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = listOf(otherUserId)
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        every { mockUserRepo.getUser(otherUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("post1")
+        advanceUntilIdle()
+        assertEquals("post1", viewModel.likesDrawerPostId.value)
+
+        every { mockPostsRepo.getComments("post1", any()) } answers {
+            lastArg<(Result<List<Comment>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        viewModel.openCommentsDrawer("post1")
+        advanceUntilIdle()
+
+        assertNull(viewModel.likesDrawerPostId.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
+        assertEquals("post1", viewModel.commentsDrawerPostId.value)
+    }
+
+    @Test
+    fun `closeLikesDrawer clears likes state`() = runTest {
+        val user = User(userId = testUserId, fullName = "Test", displayName = "test", email = "test@test.com")
+        val liker = User(userId = otherUserId, fullName = "Liker", displayName = "liker", email = "l@test.com")
+        val post = Post(
+            id = "post1",
+            ownerUserId = followedUserId,
+            photoUrl = "url",
+            createdAt = Date(),
+            likes = listOf(otherUserId)
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockPostsRepo.getFeedPosts(testUserId, 50, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockUserRepo.getUser(followedUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = followedUserId, fullName = "F", displayName = "f", email = "f@test.com")))
+        }
+        every { mockUserRepo.getUser(otherUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+        stubGetCommentCount(0)
+        viewModel.loadHomeData()
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("post1")
+        advanceUntilIdle()
+
+        viewModel.closeLikesDrawer()
+
+        assertNull(viewModel.likesDrawerPostId.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
+    }
 }
 

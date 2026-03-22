@@ -14,18 +14,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import coil.compose.AsyncImage
+import com.leteam.locked.ui.components.UserListBottomSheet
 import com.leteam.locked.posts.Post
-import com.leteam.locked.users.User
 import com.leteam.locked.workout.Workout
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -34,7 +31,6 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -85,6 +81,9 @@ fun ProfileScreen(
     val followerUsers by viewModel.followerUsers.collectAsState()
     val followingUsers by viewModel.followingUsers.collectAsState()
     val followListLoading by viewModel.followListLoading.collectAsState()
+    val likesDrawerPostId by viewModel.likesDrawerPostId.collectAsState()
+    val likeUsers by viewModel.likeUsers.collectAsState()
+    val likesListLoading by viewModel.likesListLoading.collectAsState()
 
     var showFollowList by remember { mutableStateOf<String?>(null) }
 
@@ -250,6 +249,7 @@ fun ProfileScreen(
                     count = followerCount,
                     label = "Followers",
                     onClick = {
+                        viewModel.closeLikesDrawer()
                         viewModel.loadFollowerUsers(u.userId)
                         showFollowList = "followers"
                     }
@@ -258,6 +258,7 @@ fun ProfileScreen(
                     count = followingCount,
                     label = "Following",
                     onClick = {
+                        viewModel.closeLikesDrawer()
                         viewModel.loadFollowingUsers(u.userId)
                         showFollowList = "following"
                     }
@@ -298,7 +299,15 @@ fun ProfileScreen(
                 recentPosts.take(5).forEach { post ->
                     PostHistoryItem(
                         post = post,
-                        onClick = { onPostClick(post.id) }
+                        onClick = { onPostClick(post.id) },
+                        onLikesClick = if (post.likes.isNotEmpty()) {
+                            {
+                                showFollowList = null
+                                viewModel.openLikesDrawer(post.id)
+                            }
+                        } else {
+                            null
+                        }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -354,44 +363,29 @@ fun ProfileScreen(
     if (showFollowList != null) {
         val title = if (showFollowList == "followers") "Followers" else "Following"
         val users = if (showFollowList == "followers") followerUsers else followingUsers
-        ModalBottomSheet(
-            onDismissRequest = { showFollowList = null }
-        ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-                if (followListLoading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator()
-                    }
-                } else {
-                    LazyColumn(
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.heightIn(max = 400.dp)
-                    ) {
-                        items(users, key = { it.userId }) { user ->
-                            FollowListUserRow(
-                                user = user,
-                                onClick = {
-                                    onUserClick(user.userId)
-                                    showFollowList = null
-                                }
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(24.dp))
+        UserListBottomSheet(
+            title = title,
+            users = users,
+            loading = followListLoading,
+            onDismiss = { showFollowList = null },
+            onUserClick = { userId ->
+                onUserClick(userId)
+                showFollowList = null
             }
-        }
+        )
+    }
+
+    if (likesDrawerPostId != null) {
+        UserListBottomSheet(
+            title = "Likes",
+            users = likeUsers,
+            loading = likesListLoading,
+            onDismiss = { viewModel.closeLikesDrawer() },
+            onUserClick = { userId ->
+                onUserClick(userId)
+                viewModel.closeLikesDrawer()
+            }
+        )
     }
 }
 
@@ -400,7 +394,8 @@ private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 @Composable
 private fun PostHistoryItem(
     post: Post,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onLikesClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -440,11 +435,21 @@ private fun PostHistoryItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 if (post.likes.isNotEmpty()) {
-                    Text(
-                        text = "${post.likes.size} like${if (post.likes.size == 1) "" else "s"}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    val likeLabel = "${post.likes.size} like${if (post.likes.size == 1) "" else "s"}"
+                    if (onLikesClick != null) {
+                        Text(
+                            text = likeLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.clickable(onClick = onLikesClick)
+                        )
+                    } else {
+                        Text(
+                            text = likeLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -494,60 +499,6 @@ private fun StatItem(
         Box(modifier = Modifier.clickable(onClick = onClick)) { columnContent() }
     } else {
         columnContent()
-    }
-}
-
-@Composable
-private fun FollowListUserRow(
-    user: User,
-    onClick: () -> Unit
-) {
-    val handle = if (user.displayName.isNotBlank()) "@${user.displayName}" else user.email
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center
-        ) {
-            if (user.photoUrl.isNotBlank()) {
-                AsyncImage(
-                    model = user.photoUrl,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-        Column(modifier = Modifier.padding(start = 12.dp)) {
-            Text(
-                text = user.fullName.ifBlank { "User" },
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (handle.isNotBlank()) {
-                Text(
-                    text = handle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }
 

@@ -23,7 +23,9 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.util.Date
@@ -242,5 +244,97 @@ class ProfileViewModelTest {
         advanceUntilIdle()
 
         verify(exactly = 0) { mockUserRepo.getUser(any(), any()) }
+    }
+
+    @Test
+    fun `openLikesDrawer loads like users from recent post`() = runTest {
+        val user = User(userId = testUserId, fullName = "Me", displayName = "me", email = "me@test.com")
+        val liker = User(userId = otherUserId, fullName = "Fan", displayName = "fan", email = "fan@test.com")
+        val post = Post(
+            id = "p1",
+            caption = "Hi",
+            ownerUserId = testUserId,
+            photoUrl = "",
+            createdAt = Date(),
+            likes = listOf(otherUserId)
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockFollowRepo.getFollowerIds(any(), any()) } answers {
+            lastArg<(Result<List<String>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockFollowRepo.getFollowingIds(any(), any()) } answers {
+            lastArg<(Result<List<String>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockPostsRepo.getPostsByUser(testUserId, 500, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockPostsRepo.getPostsByUser(testUserId, 20, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockWorkoutRepo.getWorkouts(testUserId, any()) } answers {
+            lastArg<(Result<List<Workout>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockUserRepo.getUser(otherUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+
+        viewModel.loadProfile(null)
+        advanceUntilIdle()
+
+        viewModel.openLikesDrawer("p1")
+        advanceUntilIdle()
+
+        assertEquals("p1", viewModel.likesDrawerPostId.value)
+        assertEquals(1, viewModel.likeUsers.value.size)
+        assertEquals("Fan", viewModel.likeUsers.value[0].fullName)
+        assertFalse(viewModel.likesListLoading.value)
+        verify { mockUserRepo.getUser(otherUserId, any()) }
+    }
+
+    @Test
+    fun `closeLikesDrawer clears likes drawer state`() = runTest {
+        val user = User(userId = testUserId, fullName = "Me", displayName = "me", email = "me@test.com")
+        val liker = User(userId = otherUserId, fullName = "Fan", displayName = "fan", email = "fan@test.com")
+        val post = Post(
+            id = "p1",
+            caption = "Hi",
+            ownerUserId = testUserId,
+            photoUrl = "",
+            createdAt = Date(),
+            likes = listOf(otherUserId)
+        )
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(user))
+        }
+        every { mockFollowRepo.getFollowerIds(any(), any()) } answers {
+            lastArg<(Result<List<String>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockFollowRepo.getFollowingIds(any(), any()) } answers {
+            lastArg<(Result<List<String>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockPostsRepo.getPostsByUser(testUserId, 500, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockPostsRepo.getPostsByUser(testUserId, 20, any()) } answers {
+            lastArg<(Result<List<Post>>) -> Unit>().invoke(Result.success(listOf(post)))
+        }
+        every { mockWorkoutRepo.getWorkouts(testUserId, any()) } answers {
+            lastArg<(Result<List<Workout>>) -> Unit>().invoke(Result.success(emptyList()))
+        }
+        every { mockUserRepo.getUser(otherUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(liker))
+        }
+
+        viewModel.loadProfile(null)
+        advanceUntilIdle()
+        viewModel.openLikesDrawer("p1")
+        advanceUntilIdle()
+
+        viewModel.closeLikesDrawer()
+
+        assertNull(viewModel.likesDrawerPostId.value)
+        assertTrue(viewModel.likeUsers.value.isEmpty())
     }
 }

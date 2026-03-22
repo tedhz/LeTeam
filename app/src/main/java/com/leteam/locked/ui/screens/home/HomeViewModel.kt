@@ -53,6 +53,15 @@ class HomeViewModel(
     private val _commentsLoading = MutableStateFlow(false)
     val commentsLoading: StateFlow<Boolean> = _commentsLoading.asStateFlow()
 
+    private val _likesDrawerPostId = MutableStateFlow<String?>(null)
+    val likesDrawerPostId: StateFlow<String?> = _likesDrawerPostId.asStateFlow()
+
+    private val _likeUsers = MutableStateFlow<List<User>>(emptyList())
+    val likeUsers: StateFlow<List<User>> = _likeUsers.asStateFlow()
+
+    private val _likesListLoading = MutableStateFlow(false)
+    val likesListLoading: StateFlow<Boolean> = _likesListLoading.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -195,6 +204,7 @@ class HomeViewModel(
     }
 
     fun openCommentsDrawer(postId: String) {
+        closeLikesDrawerInternal()
         _commentsDrawerPostId.value = postId
         loadComments(postId)
     }
@@ -202,6 +212,50 @@ class HomeViewModel(
     fun closeCommentsDrawer() {
         _commentsDrawerPostId.value = null
         _comments.value = emptyList()
+    }
+
+    fun openLikesDrawer(postId: String) {
+        _commentsDrawerPostId.value = null
+        _comments.value = emptyList()
+        val postWithUser = _feedPosts.value.find { it.post.id == postId } ?: return
+        _likesDrawerPostId.value = postId
+        loadLikeUsers(postWithUser.post.likes)
+    }
+
+    fun closeLikesDrawer() {
+        closeLikesDrawerInternal()
+    }
+
+    private fun closeLikesDrawerInternal() {
+        _likesDrawerPostId.value = null
+        _likeUsers.value = emptyList()
+        _likesListLoading.value = false
+    }
+
+    private fun loadLikeUsers(likeUserIds: List<String>) {
+        val orderedIds = likeUserIds.distinct()
+        if (orderedIds.isEmpty()) {
+            _likeUsers.value = emptyList()
+            _likesListLoading.value = false
+            return
+        }
+        _likesListLoading.value = true
+        _likeUsers.value = emptyList()
+        val userMap = mutableMapOf<String, User>()
+        var completed = 0
+        orderedIds.forEach { id ->
+            userRepository.getUser(id) { userResult ->
+                userResult.onSuccess { userMap[id] = it }
+                userResult.onFailure {
+                    userMap[id] = User(userId = id, fullName = "User")
+                }
+                completed++
+                if (completed == orderedIds.size) {
+                    _likeUsers.value = orderedIds.mapNotNull { userMap[it] }
+                    _likesListLoading.value = false
+                }
+            }
+        }
     }
 
     fun loadComments(postId: String) {

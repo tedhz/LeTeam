@@ -61,6 +61,15 @@ class ProfileViewModel(
     private val _followListLoading = MutableStateFlow(false)
     val followListLoading: StateFlow<Boolean> = _followListLoading.asStateFlow()
 
+    private val _likesDrawerPostId = MutableStateFlow<String?>(null)
+    val likesDrawerPostId: StateFlow<String?> = _likesDrawerPostId.asStateFlow()
+
+    private val _likeUsers = MutableStateFlow<List<User>>(emptyList())
+    val likeUsers: StateFlow<List<User>> = _likeUsers.asStateFlow()
+
+    private val _likesListLoading = MutableStateFlow(false)
+    val likesListLoading: StateFlow<Boolean> = _likesListLoading.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -156,6 +165,47 @@ class ProfileViewModel(
 
     fun clearFollowError() {
         _followError.value = null
+    }
+
+    fun openLikesDrawer(postId: String) {
+        _likesDrawerPostId.value = postId
+        val ids = _recentPosts.value.find { it.id == postId }?.likes ?: emptyList()
+        loadUsersByIds(ids) { ordered ->
+            _likeUsers.value = ordered
+            _likesListLoading.value = false
+        }
+    }
+
+    fun closeLikesDrawer() {
+        _likesDrawerPostId.value = null
+        _likeUsers.value = emptyList()
+        _likesListLoading.value = false
+    }
+
+    private fun loadUsersByIds(ids: List<String>, onComplete: (List<User>) -> Unit) {
+        val orderedIds = ids.distinct()
+        if (orderedIds.isEmpty()) {
+            _likesListLoading.value = false
+            onComplete(emptyList())
+            return
+        }
+        _likesListLoading.value = true
+        _likeUsers.value = emptyList()
+        val userMap = mutableMapOf<String, User>()
+        var completed = 0
+        orderedIds.forEach { id ->
+            userRepository.getUser(id) { userResult ->
+                userResult.onSuccess { userMap[id] = it }
+                userResult.onFailure {
+                    userMap[id] = User(userId = id, fullName = "User")
+                }
+                completed++
+                if (completed == orderedIds.size) {
+                    val ordered = orderedIds.mapNotNull { userMap[it] }
+                    onComplete(ordered)
+                }
+            }
+        }
     }
 
     fun loadFollowerUsers(profileUserId: String) {

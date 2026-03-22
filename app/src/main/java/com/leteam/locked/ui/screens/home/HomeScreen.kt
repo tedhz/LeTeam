@@ -42,6 +42,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -137,6 +140,8 @@ fun HomeScreen(
             }
     }
 
+    val pullState = rememberPullToRefreshState()
+
     Box(modifier = Modifier.fillMaxSize().background(screenBackground)) {
         if (isLoading && currentUser == null) {
             Box(
@@ -146,31 +151,46 @@ fun HomeScreen(
                 CircularProgressIndicator()
             }
         } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = headerHeightDp + 8.dp,
-                    bottom = 8.dp
-                ),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                val hasPostedToday = currentUser?.dailyPostStatus?.hasPostedToday ?: false
-                if (!hasPostedToday) {
-                    item {
-                        TodaysWorkoutCheckInCard(onPostClick = onPostClick)
-                    }
-                }
-
-                items(feedPosts, key = { it.post.id }) { postWithUser ->
-                    FeedPostCard(
-                        postWithUser = postWithUser,
-                        isBlurred = !hasPostedToday,
-                        viewModel = viewModel,
-                        onUserClick = onUserClick
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = { viewModel.refresh() },
+                state = pullState,
+                indicator = {
+                    // Header is a sibling drawn above this box; offset the indicator below it so it stays visible.
+                    PullToRefreshDefaults.Indicator(
+                        modifier = Modifier.padding(top = headerHeightDp + 8.dp),
+                        isRefreshing = isLoading,
+                        state = pullState,
+                        color = Color.Black
                     )
+                }
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = headerHeightDp + 8.dp,
+                        bottom = 8.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    val hasPostedToday = currentUser?.dailyPostStatus?.hasPostedToday ?: false
+                    if (!hasPostedToday) {
+                        item {
+                            TodaysWorkoutCheckInCard(onPostClick = onPostClick)
+                        }
+                    }
+
+                    items(feedPosts, key = { it.post.id }) { postWithUser ->
+                        FeedPostCard(
+                            postWithUser = postWithUser,
+                            isBlurred = !hasPostedToday,
+                            viewModel = viewModel,
+                            onUserClick = onUserClick
+                        )
+                    }
                 }
             }
         }

@@ -52,7 +52,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
@@ -135,57 +137,68 @@ fun ProfileScreen(
 
             val u = user!!
 
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .clip(CircleShape)
-                    .background(androidx.compose.ui.graphics.Color(0xFFEDEDED)),
-                contentAlignment = Alignment.Center
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (u.photoUrl.isNotBlank()) {
-                    AsyncImage(
-                        model = u.photoUrl,
-                        contentDescription = "Profile photo",
-                        modifier = Modifier.fillMaxWidth().height(88.dp),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Profile photo",
-                        modifier = Modifier.size(44.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                Box(
+                    modifier = Modifier
+                        .size(88.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEDEDED)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (u.photoUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = u.photoUrl,
+                            contentDescription = "Profile photo",
+                            modifier = Modifier.fillMaxWidth().height(88.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile photo",
+                            modifier = Modifier.size(44.dp),
+                            tint = Color.DarkGray.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = u.fullName.ifBlank { "User" },
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val handle = if (u.displayName.isNotBlank()) "@${u.displayName}" else u.email.ifBlank { "" }
+                if (handle.isNotBlank()) {
+                    Text(
+                        text = handle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.DarkGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = u.fullName.ifBlank { "User" },
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            val handle = if (u.displayName.isNotBlank()) "@${u.displayName}" else u.email.ifBlank { "" }
-            if (handle.isNotBlank()) {
-                Text(
-                    text = handle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (u.bio.isNotBlank()) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = u.bio,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (u.bio.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = u.bio,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.DarkGray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -522,17 +535,17 @@ private fun FollowButton(
     )
     val backgroundColor by animateColorAsState(
         targetValue = when {
-            inProgress -> MaterialTheme.colorScheme.surfaceVariant
-            isFollowing -> MaterialTheme.colorScheme.primaryContainer
-            else -> MaterialTheme.colorScheme.primary
+            inProgress -> Color(0xFFEDEDED)
+            isFollowing -> Color(0xFFEDEDED)
+            else -> Color.Black
         },
         animationSpec = tween(200), label = "bg"
     )
     val contentColor by animateColorAsState(
         targetValue = when {
-            inProgress -> MaterialTheme.colorScheme.onSurfaceVariant
-            isFollowing -> MaterialTheme.colorScheme.onPrimaryContainer
-            else -> MaterialTheme.colorScheme.onPrimary
+            inProgress -> Color.DarkGray
+            isFollowing -> Color.Black
+            else -> Color.White
         },
         animationSpec = tween(200), label = "content"
     )
@@ -544,7 +557,9 @@ private fun FollowButton(
             .scale(scale),
         colors = ButtonDefaults.buttonColors(
             containerColor = backgroundColor,
-            contentColor = contentColor
+            contentColor = contentColor,
+            disabledContainerColor = Color(0xFFEDEDED),
+            disabledContentColor = Color.DarkGray
         ),
         shape = MaterialTheme.shapes.medium,
         enabled = !inProgress

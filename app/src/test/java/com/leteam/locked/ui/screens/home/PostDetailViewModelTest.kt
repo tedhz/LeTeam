@@ -50,6 +50,10 @@ class PostDetailViewModelTest {
 
         Dispatchers.setMain(UnconfinedTestDispatcher())
 
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = testUserId)))
+        }
+
         viewModel = PostDetailViewModel(mockUserRepo, mockPostsRepo)
     }
 

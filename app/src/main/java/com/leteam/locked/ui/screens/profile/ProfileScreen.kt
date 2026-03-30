@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import coil.compose.AsyncImage
+import com.leteam.locked.ui.components.TodaysWorkoutCheckInCard
 import com.leteam.locked.ui.components.UserListBottomSheet
 import com.leteam.locked.posts.Post
 import com.leteam.locked.workout.Workout
@@ -50,6 +51,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -67,6 +69,7 @@ fun ProfileScreen(
     profileUserId: String? = null,
     onUserClick: (String) -> Unit = {},
     onPostClick: (String) -> Unit = {},
+    onPostWorkoutClick: () -> Unit = {},
     onBackClick: (() -> Unit)? = null,
     onEditProfileClick: (() -> Unit)? = null,
     viewModel: ProfileViewModel = viewModel()
@@ -86,6 +89,9 @@ fun ProfileScreen(
     val likesDrawerPostId by viewModel.likesDrawerPostId.collectAsState()
     val likeUsers by viewModel.likeUsers.collectAsState()
     val likesListLoading by viewModel.likesListLoading.collectAsState()
+    val viewerUser by viewModel.viewerUser.collectAsState()
+    val hasPostedToday = viewerUser?.dailyPostStatus?.hasPostedToday ?: false
+    val lockFeedContent = !hasPostedToday
 
     var showFollowList by remember { mutableStateOf<String?>(null) }
 
@@ -289,6 +295,10 @@ fun ProfileScreen(
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
+            if (lockFeedContent) {
+                TodaysWorkoutCheckInCard(onPostWorkoutClick = onPostWorkoutClick)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
             if (recentPosts.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -308,6 +318,7 @@ fun ProfileScreen(
                 recentPosts.take(5).forEach { post ->
                     PostHistoryItem(
                         post = post,
+                        isBlurred = lockFeedContent,
                         onClick = { onPostClick(post.id) },
                         onLikesClick = if (post.likes.isNotEmpty()) {
                             {
@@ -403,6 +414,7 @@ private val dateFormat = SimpleDateFormat("MMM d, yyyy", Locale.getDefault())
 @Composable
 private fun PostHistoryItem(
     post: Post,
+    isBlurred: Boolean,
     onClick: () -> Unit = {},
     onLikesClick: (() -> Unit)? = null
 ) {
@@ -422,6 +434,9 @@ private fun PostHistoryItem(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(6.dp))
+                    .then(
+                        if (isBlurred) Modifier.blur(radius = 40.dp) else Modifier
+                    )
             )
             Spacer(modifier = Modifier.width(12.dp))
         }

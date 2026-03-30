@@ -99,6 +99,9 @@ class ProfileViewModelTest {
     @Test
     fun `loadProfile with other user id loads their profile and isFollowing`() = runTest {
         val other = User(userId = otherUserId, fullName = "Other", displayName = "other", email = "o@test.com")
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = testUserId, fullName = "Me")))
+        }
         every { mockUserRepo.getUser(otherUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(other))
         }
@@ -163,6 +166,9 @@ class ProfileViewModelTest {
     @Test
     fun `toggleFollow calls follow when not following`() = runTest {
         val other = User(userId = otherUserId, fullName = "Other", displayName = "other", email = "o@test.com")
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = testUserId, fullName = "Me")))
+        }
         every { mockUserRepo.getUser(otherUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(other))
         }
@@ -198,6 +204,9 @@ class ProfileViewModelTest {
     @Test
     fun `toggleFollow calls unfollow when following`() = runTest {
         val other = User(userId = otherUserId, fullName = "Other", displayName = "other", email = "o@test.com")
+        every { mockUserRepo.getUser(testUserId, any()) } answers {
+            lastArg<(Result<User>) -> Unit>().invoke(Result.success(User(userId = testUserId, fullName = "Me")))
+        }
         every { mockUserRepo.getUser(otherUserId, any()) } answers {
             lastArg<(Result<User>) -> Unit>().invoke(Result.success(other))
         }

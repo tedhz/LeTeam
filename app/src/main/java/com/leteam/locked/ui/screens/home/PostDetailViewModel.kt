@@ -43,12 +43,27 @@ class PostDetailViewModel(
     private val _likesListLoading = MutableStateFlow(false)
     val likesListLoading: StateFlow<Boolean> = _likesListLoading.asStateFlow()
 
+    private val _viewerUser = MutableStateFlow<User?>(null)
+    val viewerUser: StateFlow<User?> = _viewerUser.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
+
+    private fun loadViewerUser() {
+        val uid = auth.currentUser?.uid ?: run {
+            _viewerUser.value = null
+            return
+        }
+        userRepository.getUser(uid) { result ->
+            result.onSuccess { _viewerUser.value = it }
+            result.onFailure { _viewerUser.value = null }
+        }
+    }
 
     fun loadPost(postId: String) {
         _isLoading.value = true
         _postWithUser.value = null
+        loadViewerUser()
 
         viewModelScope.launch {
             postsRepository.getPost(postId) { postResult ->

@@ -156,6 +156,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 ProfileScreen(
                     onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
                     onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) },
+                    onPostWorkoutClick = { navController.navigate(Routes.CAMERA) },
                     onEditProfileClick = { navController.navigate(Routes.EDIT_PROFILE) }
                 )
             }
@@ -169,6 +170,7 @@ fun MainScreen(onSignedOut: () -> Unit) {
                     profileUserId = userId,
                     onUserClick = { uid -> navController.navigate(Routes.profileUser(uid)) },
                     onPostClick = { postId -> navController.navigate(Routes.postDetail(postId)) },
+                    onPostWorkoutClick = { navController.navigate(Routes.CAMERA) },
                     onBackClick = { navController.popBackStack() }
                 )
             }
@@ -188,7 +190,8 @@ fun MainScreen(onSignedOut: () -> Unit) {
                 PostDetailScreen(
                     postId = postId,
                     onBack = { navController.popBackStack() },
-                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) }
+                    onUserClick = { userId -> navController.navigate(Routes.profileUser(userId)) },
+                    onPostWorkoutClick = { navController.navigate(Routes.CAMERA) }
                 )
             }
 

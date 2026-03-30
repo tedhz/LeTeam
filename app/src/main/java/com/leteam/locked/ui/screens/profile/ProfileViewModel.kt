@@ -70,14 +70,40 @@ class ProfileViewModel(
     private val _likesListLoading = MutableStateFlow(false)
     val likesListLoading: StateFlow<Boolean> = _likesListLoading.asStateFlow()
 
+    /** Signed-in user; used for daily check-in / blur rules when viewing any profile. */
+    private val _viewerUser = MutableStateFlow<User?>(null)
+    val viewerUser: StateFlow<User?> = _viewerUser.asStateFlow()
+
     val currentUserId: String?
         get() = auth.currentUser?.uid
 
     // If [profileUserId] is null, this loads the current user's profile.
     fun loadProfile(profileUserId: String? = null) {
-        val targetId = profileUserId ?: auth.currentUser?.uid ?: return
+        val me = auth.currentUser?.uid
+        val targetId = profileUserId ?: me ?: return
         viewModelScope.launch {
-            loadUser(targetId)
+            if (me != null && me == targetId) {
+                userRepository.getUser(targetId) { result ->
+                    result.onSuccess { u ->
+                        _user.value = u
+                        _viewerUser.value = u
+                    }
+                    result.onFailure {
+                        _user.value = null
+                        _viewerUser.value = null
+                    }
+                }
+            } else {
+                if (me != null) {
+                    userRepository.getUser(me) { result ->
+                        result.onSuccess { _viewerUser.value = it }
+                        result.onFailure { _viewerUser.value = null }
+                    }
+                } else {
+                    _viewerUser.value = null
+                }
+                loadUser(targetId)
+            }
             loadCounts(targetId)
             loadRecentPosts(targetId)
             loadRecentWorkouts(targetId)

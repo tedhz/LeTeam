@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,6 +38,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
@@ -44,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.leteam.locked.ui.components.TodaysWorkoutCheckInCard
 import com.leteam.locked.ui.components.UserListBottomSheet
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -60,9 +63,13 @@ fun PostDetailScreen(
     postId: String,
     onBack: () -> Unit,
     onUserClick: (String) -> Unit = {},
+    onPostWorkoutClick: () -> Unit = {},
     viewModel: PostDetailViewModel = viewModel()
 ) {
     val postWithUser by viewModel.postWithUser.collectAsState()
+    val viewerUser by viewModel.viewerUser.collectAsState()
+    val hasPostedToday = viewerUser?.dailyPostStatus?.hasPostedToday ?: false
+    val isContentLocked = !hasPostedToday
     val isLoading by viewModel.isLoading.collectAsState()
     val commentsDrawerOpen by viewModel.commentsDrawerOpen.collectAsState()
     val comments by viewModel.comments.collectAsState()
@@ -133,10 +140,15 @@ fun PostDetailScreen(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
+                    if (isContentLocked) {
+                        TodaysWorkoutCheckInCard(onPostWorkoutClick = onPostWorkoutClick)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
                     PostDetailCard(
                         postWithUser = pw,
                         viewModel = viewModel,
-                        onUserClick = onUserClick
+                        onUserClick = onUserClick,
+                        isBlurred = isContentLocked
                     )
                 }
             }
@@ -148,7 +160,8 @@ fun PostDetailScreen(
 private fun PostDetailCard(
     postWithUser: PostWithUser,
     viewModel: PostDetailViewModel,
-    onUserClick: (String) -> Unit
+    onUserClick: (String) -> Unit,
+    isBlurred: Boolean
 ) {
     Card(
         modifier = Modifier
@@ -228,7 +241,10 @@ private fun PostDetailCard(
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(400.dp),
+                                .height(400.dp)
+                                .then(
+                                    if (isBlurred) Modifier.blur(radius = 40.dp) else Modifier
+                                ),
                             contentScale = ContentScale.Crop
                         )
                     }

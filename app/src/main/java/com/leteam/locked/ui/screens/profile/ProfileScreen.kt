@@ -246,11 +246,7 @@ fun ProfileScreen(
             )
             Spacer(modifier = Modifier.height(12.dp))
             if (isFollowing == null) {
-                Text(
-                    text = "Your network",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
                 Spacer(modifier = Modifier.height(8.dp))
             }
             Row(

@@ -257,7 +257,7 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                StatItem(count = postCount, label = "Workouts")
+                StatItem(count = postCount, label = "Posts")
                 StatItem(
                     count = followerCount,
                     label = "Followers",
